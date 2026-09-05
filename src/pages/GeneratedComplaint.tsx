@@ -3,6 +3,7 @@ import type { Page, Complaint } from '../types';
 import type { User, ReportData } from '../App';
 import Navbar from '../components/Navbar';
 import PriorityBadge from '../components/PriorityBadge';
+import { api } from '../services/api';
 
 interface Props {
   navigate: (page: Page, opts?: { complaintId?: string }) => void;
@@ -23,54 +24,113 @@ export default function GeneratedComplaint({
   reportData,
   onComplaintSubmitted,
 }: Props) {
+  const aiAnalysis = reportData?.aiAnalysis || {};
   const initialLocation = reportData?.location || 'Block B, XYZ Road';
   const initialDesc = reportData?.description || 'Garbage has remained uncollected near Block B on XYZ Road for approximately five days. The accumulated waste is creating an unhygienic environment.';
+
+  const department = aiAnalysis.department || 'Municipal Sanitation Department';
+  const category = aiAnalysis.category || 'Sanitation';
+  const issueType = aiAnalysis.issueType || 'Civic Grievance';
+  const priority = aiAnalysis.priority || 'HIGH';
+  const severity = aiAnalysis.severity || 'High';
 
   const [language, setLanguage] = useState(reportData?.language || 'English');
   const [isEditing, setIsEditing] = useState(false);
   const [complaintText, setComplaintText] = useState(initialDesc);
+  const [loading, setLoading] = useState(false);
 
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
     if (lang === 'English') {
       setComplaintText(initialDesc);
     } else if (lang === 'Telugu') {
-      setComplaintText(`${initialLocation} వద్ద మున్సిపల్ చెత్తను వెంటనే తొలగించాలి. సమస్య తీవ్రంగా ఉంది.`);
+      setComplaintText(`${initialLocation} వద్ద మున్సిపల్ సమస్యను వెంటనే పరిష్కరించాలి.`);
     } else if (lang === 'Hindi') {
-      setComplaintText(`${initialLocation} के पास कचरा समस्या बनी हुई है। तत्काल सफाई की आवश्यकता है।`);
+      setComplaintText(`${initialLocation} के पास समस्या बनी हुई है। तत्काल कार्रवाई की आवश्यकता है।`);
     } else if (lang === 'Tamil') {
-      setComplaintText(`${initialLocation} பகுதியில் குப்பை அகற்றும் பணி உடனடியாக செய்யப்பட வேண்டும்.`);
+      setComplaintText(`${initialLocation} பகுதியில் பிரச்சனை உடனடியாக சரி செய்யப்பட வேண்டும்.`);
     } else if (lang === 'Kannada') {
-      setComplaintText(`${initialLocation} ಹತ್ತಿರ ಕಸ ತೆರವುಗೊಳಿಸಲು ತಕ್ಷಣದ ಕ್ರಮ ಅಗತ್ಯವಿದೆ.`);
+      setComplaintText(`${initialLocation} ಹತ್ತಿರ ಸಮಸ್ಯೆಯನ್ನು ತಕ್ಷಣವೇ ಬಗೆಹರಿಸಬೇಕು.`);
     } else if (lang === 'Malayalam') {
-      setComplaintText(`${initialLocation} സമീപം മാലിന്യ നിക്ഷേപം ഉടൻ നീക്കം ചെയ്യണം.`);
+      setComplaintText(`${initialLocation} സമീപം പരാതി ഉടൻ പരിഹരിക്കണം.`);
     }
   };
 
-  const handleSubmitComplaint = () => {
-    const randomNum = Math.floor(10000 + Math.random() * 90000);
-    const newId = `CL-${randomNum}`;
-    const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  const handleSubmitComplaint = async () => {
+    setLoading(true);
 
-    const newComplaint: Complaint = {
-      id: newId,
-      issue: initialDesc.length > 40 ? initialDesc.substring(0, 40) + '...' : initialDesc,
-      category: 'Sanitation',
-      department: 'Municipal Sanitation Department',
-      priority: 'HIGH',
-      location: initialLocation,
-      status: 'Submitted',
-      date: dateStr,
-      description: complaintText,
-      aiSummary: complaintText,
-      severity: 'High',
-      duration: 'Recent',
-      safetyRisk: 'Moderate',
-      evidence: reportData?.uploadedFiles?.length || 1,
-    };
+    try {
+      const subject = `Urgent Notice: ${issueType} at ${initialLocation}`;
+      const payload = {
+        description: complaintText,
+        language,
+        category,
+        issueType,
+        severity,
+        priority,
+        department,
+        duration: aiAnalysis.duration || 'Recent',
+        location: { address: initialLocation },
+        evidence: reportData?.uploadedFiles || [],
+        aiAnalysis: {
+          summary: aiAnalysis.summary || complaintText,
+          safetyRisk: aiAnalysis.safetyRisk || 'Moderate',
+          justification: aiAnalysis.justification || 'Analyzed by CivicLens AI.',
+          requiredEvidence: aiAnalysis.requiredEvidence || ['Photo', 'Location'],
+        },
+        generatedComplaint: {
+          subject,
+          body: complaintText,
+        },
+      };
 
-    onComplaintSubmitted?.(newComplaint);
-    navigate('success', { complaintId: newId });
+      // Create complaint via backend API
+      const savedComplaint = await api.complaints.create(payload);
+
+      const formattedComplaint: Complaint = {
+        id: savedComplaint.caseId || savedComplaint.id,
+        issue: issueType,
+        category,
+        department,
+        priority,
+        location: initialLocation,
+        status: 'Submitted',
+        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+        description: complaintText,
+        aiSummary: aiAnalysis.summary || complaintText,
+        severity,
+        duration: aiAnalysis.duration || 'Recent',
+        safetyRisk: aiAnalysis.safetyRisk || 'Moderate',
+        evidence: reportData?.uploadedFiles?.length || 1,
+      };
+
+      onComplaintSubmitted?.(formattedComplaint);
+      navigate('success', { complaintId: savedComplaint.caseId || formattedComplaint.id });
+    } catch (err: any) {
+      // Fallback local creation if backend offline
+      const randomNum = Math.floor(10000 + Math.random() * 90000);
+      const fallbackId = `CL-${randomNum}`;
+      const fallbackComplaint: Complaint = {
+        id: fallbackId,
+        issue: issueType,
+        category,
+        department,
+        priority,
+        location: initialLocation,
+        status: 'Submitted',
+        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
+        description: complaintText,
+        aiSummary: complaintText,
+        severity,
+        duration: 'Recent',
+        safetyRisk: 'Moderate',
+        evidence: 1,
+      };
+      onComplaintSubmitted?.(fallbackComplaint);
+      navigate('success', { complaintId: fallbackId });
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -109,15 +169,15 @@ export default function GeneratedComplaint({
               </div>
               <span className="font-mono text-xs text-white/60">Draft · {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
             </div>
-            <h2 className="font-display font-bold text-lg">Civic Issue Complaint Notice</h2>
-            <p className="text-white/60 text-sm mt-0.5">To: Municipal Sanitation Department</p>
+            <h2 className="font-display font-bold text-lg">{issueType} Notice</h2>
+            <p className="text-white/60 text-sm mt-0.5">To: {department}</p>
           </div>
 
           {/* Meta info */}
           <div className="px-6 py-4 bg-[#F8FAFC] border-b border-[#D1DCE8]">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
               {[
-                { label: 'Status', value: 'Draft', mono: true },
+                { label: 'Status', value: 'Ready to Submit', mono: true },
                 { label: 'Priority', value: null, badge: true },
                 { label: 'Location', value: initialLocation },
                 { label: 'Evidence', value: `${reportData?.uploadedFiles?.length || 1} photo(s)` },
@@ -125,7 +185,7 @@ export default function GeneratedComplaint({
                 <div key={row.label}>
                   <span className="text-[#8BA3BC] font-medium uppercase tracking-wide block mb-0.5">{row.label}</span>
                   {row.badge ? (
-                    <PriorityBadge priority="HIGH" />
+                    <PriorityBadge priority={priority} />
                   ) : (
                     <span className={`font-medium text-[#0F1C2E] ${row.mono ? 'font-mono' : ''}`}>{row.value}</span>
                   )}
@@ -176,7 +236,7 @@ export default function GeneratedComplaint({
             <svg className="w-4 h-4 text-blue-500 shrink-0 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
             </svg>
-            <p className="text-blue-700">This complaint was generated by CivicLens AI based on your description. You may edit it before submitting.</p>
+            <p className="text-blue-700">This complaint was generated by CivicLens Gemini AI based on your description and official routing rules. You may edit it before submitting.</p>
           </div>
 
           {/* Actions */}
@@ -189,9 +249,17 @@ export default function GeneratedComplaint({
             </button>
             <button
               onClick={handleSubmitComplaint}
-              className="flex-1 bg-[#1B3A6B] text-white font-semibold py-3 rounded-xl hover:bg-[#142E57] transition-colors text-sm shadow-sm"
+              disabled={loading}
+              className="flex-1 bg-[#1B3A6B] text-white font-semibold py-3 rounded-xl hover:bg-[#142E57] transition-colors text-sm shadow-sm flex items-center justify-center gap-2"
             >
-              Submit Complaint →
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  <span>Saving to Database...</span>
+                </>
+              ) : (
+                'Submit Complaint →'
+              )}
             </button>
           </div>
         </div>

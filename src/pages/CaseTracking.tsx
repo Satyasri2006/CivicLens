@@ -1,8 +1,10 @@
+import { useState, useEffect } from 'react';
 import type { Page, Complaint } from '../types';
 import type { User } from '../App';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
 import PriorityBadge from '../components/PriorityBadge';
+import { api } from '../services/api';
 
 interface Props {
   navigate: (page: Page, opts?: { complaintId?: string }) => void;
@@ -21,17 +23,48 @@ export default function CaseTracking({
   complaintId = 'CL-10482',
   complaints = [],
 }: Props) {
-  const complaint = complaints.find((c) => c.id === complaintId) || complaints[0] || {
-    id: complaintId,
-    issue: 'Garbage accumulation',
-    category: 'Sanitation',
-    department: 'Municipal Sanitation Department',
-    priority: 'HIGH',
-    location: 'Block B, XYZ Road',
-    status: 'Submitted',
-    date: 'Today',
-    description: 'Civic complaint submitted via CivicLens AI.',
-  };
+  const [complaint, setComplaint] = useState<Complaint>(
+    () => complaints.find((c) => c.id === complaintId || (c as any).caseId === complaintId) || complaints[0] || {
+      id: complaintId,
+      issue: 'Garbage accumulation',
+      category: 'Sanitation',
+      department: 'Municipal Sanitation Department',
+      priority: 'HIGH',
+      location: 'Block B, XYZ Road',
+      status: 'Submitted',
+      date: 'Today',
+      description: 'Civic complaint submitted via CivicLens AI.',
+    }
+  );
+
+  useEffect(() => {
+    async function fetchCase() {
+      try {
+        const fetched = await api.complaints.getByCaseId(complaintId);
+        if (fetched) {
+          setComplaint({
+            id: fetched.caseId || fetched._id,
+            issue: fetched.issueType || fetched.description?.substring(0, 30) || 'Civic Issue',
+            category: fetched.category || 'Sanitation',
+            department: fetched.department || 'Municipal Sanitation Department',
+            priority: fetched.priority || 'HIGH',
+            location: typeof fetched.location === 'string' ? fetched.location : fetched.location?.address || 'City Area',
+            status: fetched.status === 'in_progress' ? 'In Progress' : fetched.status === 'under_review' ? 'Under Review' : fetched.status === 'resolved' ? 'Resolved' : 'Submitted',
+            date: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Today',
+            description: fetched.description,
+            aiSummary: fetched.aiAnalysis?.summary || fetched.description,
+            severity: fetched.severity || 'High',
+            duration: fetched.duration || 'Recent',
+            safetyRisk: fetched.aiAnalysis?.safetyRisk || 'Moderate',
+            evidence: fetched.evidence?.length || 1,
+          });
+        }
+      } catch (err) {
+        console.warn('Backend fetch for case failed, using local/prop state:', err);
+      }
+    }
+    fetchCase();
+  }, [complaintId]);
 
   const timelineEvents = [
     { label: 'Complaint Created', time: `${complaint.date}, 10:32 AM`, done: true, desc: 'Citizen submitted report via CivicLens.' },

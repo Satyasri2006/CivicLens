@@ -1,9 +1,10 @@
 import { useState } from 'react';
+import { api } from '../services/api';
 
 interface Props {
   isOpen: boolean;
   onClose: () => void;
-  onLoginSuccess: (user: { name: string; email: string; role: 'citizen' | 'admin' }) => void;
+  onLoginSuccess: (user: { id?: string; name: string; email: string; role: 'citizen' | 'admin' }) => void;
   initialMode?: 'login' | 'signup';
   intendedAction?: string;
 }
@@ -21,10 +22,11 @@ export default function AuthModal({
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
   const [error, setError] = useState('');
+  const [loading, setLoading] = useState(false);
 
   if (!isOpen) return null;
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!email.trim() || !password.trim()) {
       setError('Please fill in all required fields.');
@@ -35,27 +37,43 @@ export default function AuthModal({
       return;
     }
 
-    const userName = mode === 'signup' ? name : email.split('@')[0] || 'Citizen';
-    onLoginSuccess({
-      name: userName.charAt(0).toUpperCase() + userName.slice(1),
-      email: email,
-      role: 'citizen',
-    });
+    setLoading(true);
+    setError('');
+
+    try {
+      if (mode === 'signup') {
+        const res = await api.auth.register({ name, email, password });
+        onLoginSuccess(res.user);
+      } else {
+        const res = await api.auth.login({ email, password });
+        onLoginSuccess(res.user);
+      }
+    } catch (err: any) {
+      setError(err.message || 'Authentication failed. Please check your credentials.');
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const handleQuickDemoLogin = (role: 'citizen' | 'admin') => {
-    if (role === 'admin') {
+  const handleQuickDemoLogin = async (role: 'citizen' | 'admin') => {
+    setLoading(true);
+    setError('');
+    const demoEmail = role === 'admin' ? 'admin@civiclens.gov.in' : 'ananya@citizen.org';
+    const demoPassword = 'password';
+
+    try {
+      const res = await api.auth.login({ email: demoEmail, password: demoPassword });
+      onLoginSuccess(res.user);
+    } catch (err: any) {
+      // Fallback local state if server fails
       onLoginSuccess({
-        name: 'Ravi Kumar',
-        email: 'admin@civiclens.gov.in',
-        role: 'admin',
+        id: role === 'admin' ? 'demo_admin' : 'demo_citizen',
+        name: role === 'admin' ? 'Ravi Kumar' : 'Ananya Sharma',
+        email: demoEmail,
+        role,
       });
-    } else {
-      onLoginSuccess({
-        name: 'Ananya Sharma',
-        email: 'ananya@citizen.org',
-        role: 'citizen',
-      });
+    } finally {
+      setLoading(false);
     }
   };
 
@@ -177,9 +195,16 @@ export default function AuthModal({
 
             <button
               type="submit"
-              className="w-full bg-[#1B3A6B] text-white font-semibold py-2.5 rounded-xl hover:bg-[#142E57] transition-colors text-sm shadow-sm mt-2"
+              disabled={loading}
+              className="w-full bg-[#1B3A6B] text-white font-semibold py-2.5 rounded-xl hover:bg-[#142E57] transition-colors text-sm shadow-sm mt-2 flex items-center justify-center gap-2"
             >
-              {mode === 'login' ? 'Sign In →' : 'Create Account →'}
+              {loading ? (
+                <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+              ) : mode === 'login' ? (
+                'Sign In →'
+              ) : (
+                'Create Account →'
+              )}
             </button>
           </form>
 

@@ -2,6 +2,7 @@ import { useState } from 'react';
 import type { Page, InputMode } from '../types';
 import type { User, ReportData } from '../App';
 import Navbar from '../components/Navbar';
+import { api } from '../services/api';
 
 interface Props {
   navigate: (page: Page, opts?: { reportData?: ReportData }) => void;
@@ -20,13 +21,14 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
   const [locationDetected, setLocationDetected] = useState(false);
   const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
   const [isDragging, setIsDragging] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<{ desc?: string; location?: string }>({});
 
   const handleDetectLocation = () => {
     setTimeout(() => {
       setLocation('Block B, XYZ Road, Sector 14, City');
       setLocationDetected(true);
-    }, 400);
+    }, 300);
   };
 
   const handleFileUpload = () => {
@@ -40,7 +42,7 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
     setUploadedFiles((prev) => prev.filter((f) => f !== fileName));
   };
 
-  const handleSubmit = () => {
+  const handleSubmit = async () => {
     const newErrors: { desc?: string; location?: string } = {};
     if (!description.trim() && inputMode === 'text') {
       newErrors.desc = 'Please describe the civic issue.';
@@ -54,16 +56,40 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
     }
 
     const defaultDesc = description.trim() || 'Civic issue reported via CivicLens AI assistant.';
+    setLoading(true);
 
-    navigate('ai-analysis', {
-      reportData: {
-        inputMode,
+    try {
+      // Send description to backend Gemini analysis endpoint
+      const aiAnalysis = await api.complaints.analyze({
         description: defaultDesc,
         language,
         location,
-        uploadedFiles,
-      },
-    });
+      });
+
+      navigate('ai-analysis', {
+        reportData: {
+          inputMode,
+          description: defaultDesc,
+          language,
+          location,
+          uploadedFiles,
+          aiAnalysis,
+        },
+      });
+    } catch (err: any) {
+      // Graceful fallback if backend API is unreachable
+      navigate('ai-analysis', {
+        reportData: {
+          inputMode,
+          description: defaultDesc,
+          language,
+          location,
+          uploadedFiles,
+        },
+      });
+    } finally {
+      setLoading(false);
+    }
   };
 
   const tabs: { mode: InputMode; icon: string; label: string }[] = [
@@ -281,14 +307,24 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
           <div className="pt-2 border-t border-[#D1DCE8]">
             <button
               onClick={handleSubmit}
+              disabled={loading}
               className="w-full bg-[#1B3A6B] text-white font-semibold py-3.5 rounded-xl hover:bg-[#142E57] transition-all shadow-sm text-sm flex items-center justify-center gap-2"
             >
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
-              </svg>
-              Analyze Issue with AI →
+              {loading ? (
+                <>
+                  <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  <span>Analyzing with Gemini AI...</span>
+                </>
+              ) : (
+                <>
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9.663 17h4.673M12 3v1m6.364 1.636l-.707.707M21 12h-1M4 12H3m3.343-5.657l-.707-.707m2.828 9.9a5 5 0 117.072 0l-.548.547A3.374 3.374 0 0014 18.469V19a2 2 0 11-4 0v-.531c0-.895-.356-1.754-.988-2.386l-.548-.547z" />
+                  </svg>
+                  <span>Analyze Issue with AI →</span>
+                </>
+              )}
             </button>
-            <p className="text-xs text-[#8BA3BC] text-center mt-2">Your report will be analyzed by CivicLens AI in seconds.</p>
+            <p className="text-xs text-[#8BA3BC] text-center mt-2">Your report will be analyzed by CivicLens Gemini AI in seconds.</p>
           </div>
         </div>
       </div>

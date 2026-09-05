@@ -12,8 +12,10 @@ import AdminDashboard from './pages/AdminDashboard';
 import AdminComplaintDetails from './pages/AdminComplaintDetails';
 import AuthModal from './components/AuthModal';
 import { complaints as initialComplaints } from './data/mockData';
+import { api } from './services/api';
 
 export interface User {
+  id?: string;
   name: string;
   email: string;
   role: 'citizen' | 'admin';
@@ -26,6 +28,7 @@ export interface ReportData {
   location: string;
   uploadedFiles: string[];
   generatedText?: string;
+  aiAnalysis?: any;
 }
 
 export default function App() {
@@ -38,6 +41,36 @@ export default function App() {
   // Dynamic complaint management
   const [complaintList, setComplaintList] = useState<Complaint[]>(initialComplaints);
   const [activeReportData, setActiveReportData] = useState<ReportData | null>(null);
+
+  // Restore user session on mount from API
+  useEffect(() => {
+    async function restoreSession() {
+      try {
+        const meRes = await api.auth.getMe();
+        if (meRes?.user) {
+          setUser(meRes.user);
+          const list = await api.complaints.getMyComplaints().catch(() => []);
+          if (list && list.length > 0) {
+            setComplaintList(list);
+          }
+        }
+      } catch (err) {
+        console.warn('Session restoration failed:', err);
+      }
+    }
+    restoreSession();
+  }, []);
+
+  const fetchUserComplaints = async () => {
+    try {
+      const list = await api.complaints.getMyComplaints();
+      if (list && list.length > 0) {
+        setComplaintList(list);
+      }
+    } catch (err) {
+      console.warn('Error fetching complaints from API:', err);
+    }
+  };
 
   const navigate = (p: Page, opts?: { complaintId?: string; reportData?: ReportData }) => {
     // Protected route check for reporting an issue
@@ -58,14 +91,16 @@ export default function App() {
   };
 
   const handleLogout = () => {
+    api.auth.logout();
     setUser(null);
     setPage('landing');
   };
 
-  const handleLoginSuccess = (loggedInUser: User) => {
+  const handleLoginSuccess = async (loggedInUser: User) => {
     setUser(loggedInUser);
     setIsAuthModalOpen(false);
-    
+    await fetchUserComplaints();
+
     if (intendedPage) {
       setPage(intendedPage);
       setIntendedPage(null);
@@ -78,7 +113,7 @@ export default function App() {
 
   const handleNewComplaintSubmitted = (newComplaint: Complaint) => {
     setComplaintList((prev) => [newComplaint, ...prev]);
-    setComplaintId(newComplaint.id);
+    setComplaintId(newComplaint.id || (newComplaint as any).caseId);
   };
 
   useEffect(() => {
@@ -138,7 +173,7 @@ export default function App() {
           onOpenAuth={handleOpenAuth}
           onLogout={handleLogout}
           complaintId={complaintId}
-          complaint={complaintList.find((c) => c.id === complaintId)}
+          complaint={complaintList.find((c) => c.id === complaintId || (c as any).caseId === complaintId)}
         />
       )}
       {page === 'case-tracking' && (

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Page, AdminView, Priority, Complaint } from '../types';
 import type { User } from '../App';
 import AdminSidebar from '../components/AdminSidebar';
@@ -6,7 +6,8 @@ import MapPanel from '../components/MapPanel';
 import InsightCard from '../components/InsightCard';
 import StatusBadge from '../components/StatusBadge';
 import PriorityBadge from '../components/PriorityBadge';
-import { adminStats, aiInsights, mapMarkers } from '../data/mockData';
+import { adminStats as defaultAdminStats, aiInsights, mapMarkers } from '../data/mockData';
+import { api } from '../services/api';
 
 interface Props {
   navigate: (page: Page, opts?: { complaintId?: string }) => void;
@@ -30,21 +31,54 @@ export default function AdminDashboard({
   user,
   onOpenAuth,
   onLogout,
-  complaints,
+  complaints: initialComplaints,
 }: Props) {
   const [view, setView] = useState<AdminView>('overview');
   const [mapFilter, setMapFilter] = useState<Priority | 'ALL'>('ALL');
   const [exportMessage, setExportMessage] = useState(false);
+  const [complaintsList, setComplaintsList] = useState<Complaint[]>(initialComplaints);
+  const [stats, setStats] = useState(defaultAdminStats);
+
+  useEffect(() => {
+    async function loadAdminData() {
+      try {
+        const fetchedStats = await api.admin.getStats().catch(() => null);
+        if (fetchedStats) {
+          setStats((prev) => ({ ...prev, ...fetchedStats }));
+        }
+
+        const fetchedComplaints = await api.admin.getAllComplaints().catch(() => null);
+        if (fetchedComplaints && fetchedComplaints.length > 0) {
+          const mapped = fetchedComplaints.map((c: any) => ({
+            id: c.caseId || c._id,
+            issue: c.issueType || c.description?.substring(0, 35) || 'Civic Issue',
+            category: c.category || 'Sanitation',
+            department: c.department || 'Municipal Sanitation Department',
+            priority: c.priority || 'HIGH',
+            location: typeof c.location === 'string' ? c.location : c.location?.address || 'City Area',
+            status: c.status === 'in_progress' ? 'In Progress' : c.status === 'under_review' ? 'Under Review' : c.status === 'resolved' ? 'Resolved' : 'Submitted',
+            date: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Today',
+            description: c.description,
+            severity: c.severity || 'High',
+          }));
+          setComplaintsList(mapped);
+        }
+      } catch (err) {
+        console.warn('Admin API load error:', err);
+      }
+    }
+    loadAdminData();
+  }, []);
 
   const statCards = [
-    { label: 'Total Complaints', value: (adminStats.total + complaints.length - 8).toLocaleString(), trend: adminStats.trends.total, trendUp: true, icon: '📋', color: 'border-l-4 border-l-[#1B3A6B]' },
-    { label: 'Critical', value: adminStats.critical, trend: adminStats.trends.critical, trendUp: false, icon: '🚨', color: 'border-l-4 border-l-red-500' },
-    { label: 'Pending', value: adminStats.pending, trend: adminStats.trends.pending, trendUp: true, icon: '⏳', color: 'border-l-4 border-l-amber-500' },
-    { label: 'Resolved', value: adminStats.resolved, trend: adminStats.trends.resolved, trendUp: true, icon: '✅', color: 'border-l-4 border-l-green-500' },
+    { label: 'Total Complaints', value: (stats.total || complaintsList.length).toLocaleString(), trend: stats.trends?.total || '+12%', trendUp: true, icon: '📋', color: 'border-l-4 border-l-[#1B3A6B]' },
+    { label: 'Critical', value: stats.critical, trend: stats.trends?.critical || '-8%', trendUp: false, icon: '🚨', color: 'border-l-4 border-l-red-500' },
+    { label: 'Pending', value: stats.pending, trend: stats.trends?.pending || '+5%', trendUp: true, icon: '⏳', color: 'border-l-4 border-l-amber-500' },
+    { label: 'Resolved', value: stats.resolved, trend: stats.trends?.resolved || '+18%', trendUp: true, icon: '✅', color: 'border-l-4 border-l-green-500' },
   ];
 
   const handleExportReport = () => {
-    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(complaints, null, 2));
+    const dataStr = "data:text/json;charset=utf-8," + encodeURIComponent(JSON.stringify(complaintsList, null, 2));
     const downloadAnchor = document.createElement('a');
     downloadAnchor.setAttribute("href", dataStr);
     downloadAnchor.setAttribute("download", `civiclens_report_${new Date().toISOString().slice(0,10)}.json`);
@@ -65,7 +99,7 @@ export default function AdminDashboard({
         <div className="bg-white border-b border-[#D1DCE8] px-6 py-4 flex items-center justify-between sticky top-0 z-30 flex-wrap gap-3">
           <div>
             <h1 className="font-display font-bold text-lg text-[#0F1C2E]">City Operations Dashboard</h1>
-            <p className="text-xs text-[#5A7090]">AI-assisted civic issue monitoring · Connected as {user?.name || 'Administrator'}</p>
+            <p className="text-[#5A7090] text-xs">AI-assisted civic issue monitoring · Connected as {user?.name || 'Administrator'}</p>
           </div>
           <div className="flex gap-2 items-center">
             {exportMessage && (
@@ -78,7 +112,7 @@ export default function AdminDashboard({
               Export Report
             </button>
             <button
-              onClick={() => navigate('admin-complaint-details', { complaintId: complaints[0]?.id || 'CL-10482' })}
+              onClick={() => navigate('admin-complaint-details', { complaintId: complaintsList[0]?.id || 'CL-10482' })}
               className="text-xs bg-[#1B3A6B] text-white px-3 py-1.5 rounded-lg hover:bg-[#142E57] font-medium transition-colors"
             >
               View Details
@@ -108,7 +142,7 @@ export default function AdminDashboard({
             <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
               <h2 className="font-display font-semibold text-[#0F1C2E] text-lg mb-4">All System Complaints</h2>
               <div className="divide-y divide-[#F0F4F8]">
-                {complaints.map((c) => (
+                {complaintsList.map((c) => (
                   <button
                     key={c.id}
                     onClick={() => navigate('admin-complaint-details', { complaintId: c.id })}
@@ -138,11 +172,11 @@ export default function AdminDashboard({
                   <span className="text-green-600 font-semibold">Enabled</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-[#D1DCE8]">
-                  <span>Automatic Department Routing</span>
-                  <span className="text-green-600 font-semibold">Enabled</span>
+                  <span>Controlled Department Routing</span>
+                  <span className="text-green-600 font-semibold">Active</span>
                 </div>
                 <div className="flex items-center justify-between py-2 border-b border-[#D1DCE8]">
-                  <span>Civic Hotspot Alerts</span>
+                  <span>Deterministic Priority Engine</span>
                   <span className="text-green-600 font-semibold">Active</span>
                 </div>
               </div>
@@ -211,7 +245,7 @@ export default function AdminDashboard({
                     </button>
                   </div>
                   <div className="space-y-2.5">
-                    {complaints.slice(0, 5).map((c) => (
+                    {complaintsList.slice(0, 5).map((c) => (
                       <button
                         key={c.id}
                         onClick={() => navigate('admin-complaint-details', { complaintId: c.id })}
@@ -255,9 +289,9 @@ export default function AdminDashboard({
                   <h3 className="font-display font-semibold text-[#0F1C2E] text-sm mb-4">Status Breakdown</h3>
                   <div className="space-y-2">
                     {[
-                      { status: 'Resolved' as const, count: 888, pct: 71 },
+                      { status: 'Resolved' as const, count: stats.resolved || 888, pct: 71 },
                       { status: 'In Progress' as const, count: 234, pct: 19 },
-                      { status: 'Submitted' as const, count: 84, pct: 7 },
+                      { status: 'Submitted' as const, count: stats.pending || 84, pct: 7 },
                       { status: 'Under Review' as const, count: 42, pct: 3 },
                     ].map((s) => (
                       <div key={s.status} className="flex items-center gap-3">

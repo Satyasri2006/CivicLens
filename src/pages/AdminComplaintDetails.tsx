@@ -5,6 +5,7 @@ import AdminSidebar from '../components/AdminSidebar';
 import StatusBadge from '../components/StatusBadge';
 import PriorityBadge from '../components/PriorityBadge';
 import { PriorityIndicator } from '../components/PriorityBadge';
+import { api } from '../services/api';
 
 interface Props {
   navigate: (page: Page, opts?: { complaintId?: string }) => void;
@@ -27,7 +28,7 @@ export default function AdminComplaintDetails({
   complaints,
   setComplaints,
 }: Props) {
-  const complaint = complaints.find((c) => c.id === complaintId) || complaints[0] || {
+  const complaint = complaints.find((c) => c.id === complaintId || (c as any).caseId === complaintId) || complaints[0] || {
     id: complaintId,
     issue: 'Garbage accumulation',
     category: 'Sanitation',
@@ -44,6 +45,7 @@ export default function AdminComplaintDetails({
   const [priority, setPriority] = useState<Priority>(complaint.priority);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [noteText, setNoteText] = useState('');
   const [activityTimeline, setActivityTimeline] = useState([
@@ -57,7 +59,28 @@ export default function AdminComplaintDetails({
     setShowStatusDropdown(false);
   };
 
-  const handleSaveChanges = () => {
+  const handleSaveChanges = async () => {
+    setLoading(true);
+    const backendStatusMap: Record<string, string> = {
+      'Submitted': 'submitted',
+      'Under Review': 'under_review',
+      'In Progress': 'in_progress',
+      'Resolved': 'resolved',
+      'Rejected': 'submitted',
+    };
+
+    try {
+      await api.complaints.updateStatus(complaint.id, {
+        status: backendStatusMap[status] || 'submitted',
+        department,
+        priority,
+      });
+    } catch (err) {
+      console.warn('API update failed, updating local state:', err);
+    } finally {
+      setLoading(false);
+    }
+
     setComplaints((prev) =>
       prev.map((c) => (c.id === complaint.id ? { ...c, status, department, priority } : c))
     );
@@ -266,9 +289,14 @@ export default function AdminComplaintDetails({
 
                 <button
                   onClick={handleSaveChanges}
-                  className="w-full bg-[#1B3A6B] text-white font-semibold py-2.5 rounded-xl hover:bg-[#142E57] transition-colors text-sm mt-2 shadow-sm"
+                  disabled={loading}
+                  className="w-full bg-[#1B3A6B] text-white font-semibold py-2.5 rounded-xl hover:bg-[#142E57] transition-colors text-sm mt-2 shadow-sm flex items-center justify-center gap-2"
                 >
-                  Save Changes
+                  {loading ? (
+                    <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
+                  ) : (
+                    'Save Changes'
+                  )}
                 </button>
               </div>
             </div>

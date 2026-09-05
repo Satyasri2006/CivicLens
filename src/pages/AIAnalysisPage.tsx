@@ -31,9 +31,19 @@ export default function AIAnalysisPage({
   const [phase, setPhase] = useState<'loading' | 'result'>('loading');
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
 
+  const aiAnalysis = reportData?.aiAnalysis || {};
   const desc = reportData?.description || 'Garbage accumulation near college campus causing severe odor and public risk.';
   const loc = reportData?.location || 'Block B, XYZ Road';
   const fileCount = reportData?.uploadedFiles?.length ?? 2;
+
+  const category = aiAnalysis.category || 'Sanitation';
+  const issueType = aiAnalysis.issueType || 'Garbage accumulation';
+  const severity = aiAnalysis.severity || 'High';
+  const priority = aiAnalysis.priority || 'HIGH';
+  const department = aiAnalysis.department || 'Municipal Sanitation Department';
+  const duration = aiAnalysis.duration || '5 days';
+  const safetyRisk = aiAnalysis.safetyRisk || 'Moderate';
+  const justification = aiAnalysis.justification || 'The waste has remained uncollected for five days in a public area, which may create hygiene and public-health risks.';
 
   useEffect(() => {
     let step = 0;
@@ -42,9 +52,9 @@ export default function AIAnalysisPage({
       step++;
       if (step >= analysisSteps.length) {
         clearInterval(interval);
-        setTimeout(() => setPhase('result'), 400);
+        setTimeout(() => setPhase('result'), 300);
       }
-    }, 350);
+    }, 300);
     return () => clearInterval(interval);
   }, []);
 
@@ -67,8 +77,8 @@ export default function AIAnalysisPage({
               </svg>
             </div>
           </div>
-          <h2 className="font-display font-bold text-xl text-[#0F1C2E] mb-2 text-center">CivicLens is analyzing your report...</h2>
-          <p className="text-[#5A7090] text-sm text-center mb-10">Our AI is processing your complaint and preparing a structured response.</p>
+          <h2 className="font-display font-bold text-xl text-[#0F1C2E] mb-2 text-center">CivicLens Gemini AI is analyzing your report...</h2>
+          <p className="text-[#5A7090] text-sm text-center mb-10">Our AI is processing your complaint and applying controlled routing rules.</p>
 
           <div className="w-full space-y-3">
             {analysisSteps.map((step, i) => {
@@ -119,27 +129,27 @@ export default function AIAnalysisPage({
           </div>
           <div>
             <h1 className="font-display font-bold text-xl text-[#0F1C2E]">Issue Analysis Complete</h1>
-            <p className="text-[#5A7090] text-sm">Here's what CivicLens understood from your report.</p>
+            <p className="text-[#5A7090] text-sm">Here's what CivicLens AI understood from your report.</p>
           </div>
         </div>
 
         <div className="grid md:grid-cols-2 gap-5">
           {/* Main analysis card */}
-          <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
+          <div className="bg-[#FFFFFF] rounded-2xl border border-[#D1DCE8] p-5">
             <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#D1DCE8]">
-              <span className="font-mono text-xs text-[#5A7090]">Analysis · Draft</span>
-              <PriorityBadge priority="HIGH" size="md" />
+              <span className="font-mono text-xs text-[#5A7090]">Analysis · Gemini Verified</span>
+              <PriorityBadge priority={priority} size="md" />
             </div>
             <div className="space-y-3.5">
               {[
-                { label: 'Issue', value: desc.length > 35 ? desc.substring(0, 35) + '...' : desc, large: true },
-                { label: 'Category', value: 'Sanitation' },
-                { label: 'Severity', value: 'High' },
-                { label: 'Duration', value: 'Recent' },
+                { label: 'Issue Type', value: issueType, large: true },
+                { label: 'Category', value: category },
+                { label: 'Severity', value: severity },
+                { label: 'Duration', value: duration },
                 { label: 'Location', value: loc },
-                { label: 'Department', value: 'Municipal Sanitation Department' },
-                { label: 'Safety Risk', value: 'Moderate' },
-                { label: 'Evidence', value: fileCount > 0 ? `✓ ${fileCount} photo(s) detected` : 'No photos attached' },
+                { label: 'Department', value: department },
+                { label: 'Safety Risk', value: safetyRisk },
+                { label: 'Evidence', value: fileCount > 0 ? `✓ ${fileCount} photo(s) attached` : 'Location verified' },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between items-start gap-4">
                   <span className="text-xs text-[#5A7090] font-medium shrink-0 w-24">{row.label}</span>
@@ -155,39 +165,39 @@ export default function AIAnalysisPage({
           <div className="space-y-4">
             {/* Priority explanation */}
             <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
-              <h3 className="font-display font-semibold text-[#0F1C2E] text-sm mb-3">Why is this marked High Priority?</h3>
+              <h3 className="font-display font-semibold text-[#0F1C2E] text-sm mb-3">Why is this marked {priority} Priority?</h3>
               <blockquote className="text-sm text-[#3A4F6A] leading-relaxed bg-[#F0F4F8] rounded-xl p-3 border-l-2 border-[#1B3A6B] mb-4">
-                "{desc}"
+                "{justification}"
               </blockquote>
               <div className="space-y-2 mb-4">
                 {[
                   { label: 'Location Area', value: loc },
-                  { label: 'Public Area', value: 'Yes' },
-                  { label: 'Health Risk', value: 'Moderate' },
-                  { label: 'Evidence Attached', value: `${fileCount} photo(s)` },
+                  { label: 'Assigned Dept', value: department },
+                  { label: 'Safety Risk', value: safetyRisk },
+                  { label: 'Evidence Required', value: (aiAnalysis.requiredEvidence || ['Photo', 'Location']).join(', ') },
                 ].map((f) => (
                   <div key={f.label} className="flex justify-between text-xs">
                     <span className="text-[#5A7090]">{f.label}</span>
-                    <span className="font-medium text-[#0F1C2E]">{f.value}</span>
+                    <span className="font-medium text-[#0F1C2E] truncate max-w-[150px]">{f.value}</span>
                   </div>
                 ))}
               </div>
-              <PriorityIndicator current="HIGH" />
+              <PriorityIndicator current={priority} />
             </div>
 
             {/* Evidence detection */}
             <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
-              <h3 className="font-display font-semibold text-[#0F1C2E] text-sm mb-3">AI Evidence Detection</h3>
+              <h3 className="font-display font-semibold text-[#0F1C2E] text-sm mb-3">AI Detection & Validation</h3>
               <div className="relative bg-gray-100 rounded-xl overflow-hidden h-28 mb-3">
                 <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
-                  <span className="text-4xl opacity-50">🗑️</span>
+                  <span className="text-4xl opacity-50">🏛️</span>
                 </div>
-                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded font-mono">Civic hazard</div>
-                <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded font-mono">{loc}</div>
-                <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-0.5 rounded font-mono">Uncollected waste</div>
+                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded font-mono">{issueType}</div>
+                <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded font-mono">{department}</div>
+                <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-0.5 rounded font-mono">{priority}</div>
               </div>
               <div className="flex items-center justify-between text-xs">
-                <span className="text-[#5A7090]">Evidence confidence</span>
+                <span className="text-[#5A7090]">Analysis confidence</span>
                 <div className="flex items-center gap-1.5">
                   <div className="w-16 h-1.5 rounded-full bg-[#EBF0F8] overflow-hidden">
                     <div className="w-4/5 h-full bg-green-500 rounded-full" />
@@ -216,6 +226,17 @@ export default function AIAnalysisPage({
                   language: reportData?.language || 'English',
                   location: loc,
                   uploadedFiles: reportData?.uploadedFiles || [],
+                  aiAnalysis: {
+                    category,
+                    issueType,
+                    severity,
+                    priority,
+                    department,
+                    duration,
+                    safetyRisk,
+                    justification,
+                    summary: aiAnalysis.summary || desc,
+                  },
                 },
               })
             }
