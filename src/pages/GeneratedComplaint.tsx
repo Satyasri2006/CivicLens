@@ -1,36 +1,87 @@
 import { useState } from 'react';
-import type { Page } from '../types';
+import type { Page, Complaint } from '../types';
+import type { User, ReportData } from '../App';
 import Navbar from '../components/Navbar';
 import PriorityBadge from '../components/PriorityBadge';
 
 interface Props {
-  navigate: (page: Page) => void;
+  navigate: (page: Page, opts?: { complaintId?: string }) => void;
+  user?: User | null;
+  onOpenAuth?: (targetPage?: Page) => void;
+  onLogout?: () => void;
+  reportData?: ReportData | null;
+  onComplaintSubmitted?: (complaint: Complaint) => void;
 }
 
 const languages = ['English', 'Telugu', 'Hindi', 'Tamil', 'Kannada', 'Malayalam'];
 
-const complaintTexts: Record<string, string> = {
-  English: 'Garbage has remained uncollected near Block B on XYZ Road for approximately five days. The accumulated waste is creating an unhygienic environment and may pose a public-health concern to residents and students in the area. Immediate action is requested from the Municipal Sanitation Department to address this issue.',
-  Telugu: 'XYZ రోడ్డులో బ్లాక్ B దగ్గర సుమారు ఐదు రోజులుగా చెత్త సేకరించలేదు. పేరుకుపోయిన వ్యర్థాలు అపరిశుభ్రమైన వాతావరణాన్ని సృష్టిస్తున్నాయి.',
-  Hindi: 'XYZ रोड पर ब्लॉक B के पास लगभग पाँच दिनों से कचरा नहीं उठाया गया है। जमा हुआ कचरा अस्वच्छ वातावरण पैदा कर रहा है।',
-  Tamil: 'XYZ ரோட்டில் பிளாக் B அருகில் சுமார் ஐந்து நாட்களாக குப்பை சேகரிக்கப்படவில்லை.',
-  Kannada: 'XYZ ರಸ್ತೆಯ ಬ್ಲಾಕ್ B ಬಳಿ ಸುಮಾರು ಐದು ದಿನಗಳಿಂದ ಕಸ ಸಂಗ್ರಹಿಸಲಾಗಿಲ್ಲ.',
-  Malayalam: 'XYZ റോഡിലെ ബ്ലോക്ക് B-ക്ക് സമീപം ഏകദേശം അഞ്ച് ദിവസമായി മാലിന്യം ശേഖരിക്കാൻ വന്നിട്ടില്ല.',
-};
+export default function GeneratedComplaint({
+  navigate,
+  user,
+  onOpenAuth,
+  onLogout,
+  reportData,
+  onComplaintSubmitted,
+}: Props) {
+  const initialLocation = reportData?.location || 'Block B, XYZ Road';
+  const initialDesc = reportData?.description || 'Garbage has remained uncollected near Block B on XYZ Road for approximately five days. The accumulated waste is creating an unhygienic environment.';
 
-export default function GeneratedComplaint({ navigate }: Props) {
-  const [language, setLanguage] = useState('English');
+  const [language, setLanguage] = useState(reportData?.language || 'English');
   const [isEditing, setIsEditing] = useState(false);
-  const [complaintText, setComplaintText] = useState(complaintTexts['English']);
+  const [complaintText, setComplaintText] = useState(initialDesc);
 
   const handleLanguageChange = (lang: string) => {
     setLanguage(lang);
-    setComplaintText(complaintTexts[lang] ?? complaintTexts['English']);
+    if (lang === 'English') {
+      setComplaintText(initialDesc);
+    } else if (lang === 'Telugu') {
+      setComplaintText(`${initialLocation} వద్ద మున్సిపల్ చెత్తను వెంటనే తొలగించాలి. సమస్య తీవ్రంగా ఉంది.`);
+    } else if (lang === 'Hindi') {
+      setComplaintText(`${initialLocation} के पास कचरा समस्या बनी हुई है। तत्काल सफाई की आवश्यकता है।`);
+    } else if (lang === 'Tamil') {
+      setComplaintText(`${initialLocation} பகுதியில் குப்பை அகற்றும் பணி உடனடியாக செய்யப்பட வேண்டும்.`);
+    } else if (lang === 'Kannada') {
+      setComplaintText(`${initialLocation} ಹತ್ತಿರ ಕಸ ತೆರವುಗೊಳಿಸಲು ತಕ್ಷಣದ ಕ್ರಮ ಅಗತ್ಯವಿದೆ.`);
+    } else if (lang === 'Malayalam') {
+      setComplaintText(`${initialLocation} സമീപം മാലിന്യ നിക്ഷേപം ഉടൻ നീക്കം ചെയ്യണം.`);
+    }
+  };
+
+  const handleSubmitComplaint = () => {
+    const randomNum = Math.floor(10000 + Math.random() * 90000);
+    const newId = `CL-${randomNum}`;
+    const dateStr = new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+
+    const newComplaint: Complaint = {
+      id: newId,
+      issue: initialDesc.length > 40 ? initialDesc.substring(0, 40) + '...' : initialDesc,
+      category: 'Sanitation',
+      department: 'Municipal Sanitation Department',
+      priority: 'HIGH',
+      location: initialLocation,
+      status: 'Submitted',
+      date: dateStr,
+      description: complaintText,
+      aiSummary: complaintText,
+      severity: 'High',
+      duration: 'Recent',
+      safetyRisk: 'Moderate',
+      evidence: reportData?.uploadedFiles?.length || 1,
+    };
+
+    onComplaintSubmitted?.(newComplaint);
+    navigate('success', { complaintId: newId });
   };
 
   return (
     <div className="min-h-screen bg-[#F0F4F8]">
-      <Navbar navigate={navigate} currentPage="report" />
+      <Navbar
+        navigate={navigate}
+        currentPage="report"
+        user={user}
+        onOpenAuth={onOpenAuth}
+        onLogout={onLogout}
+      />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 animate-fadeInUp">
         <div className="mb-6">
           <div className="flex items-center gap-2 mb-1">
@@ -56,9 +107,9 @@ export default function GeneratedComplaint({ navigate }: Props) {
                 </div>
                 <span className="font-display font-bold text-sm">CivicLens</span>
               </div>
-              <span className="font-mono text-xs text-white/60">CL-10482 · 2 Sep 2026</span>
+              <span className="font-mono text-xs text-white/60">Draft · {new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
             </div>
-            <h2 className="font-display font-bold text-lg">Urgent Garbage Accumulation Complaint</h2>
+            <h2 className="font-display font-bold text-lg">Civic Issue Complaint Notice</h2>
             <p className="text-white/60 text-sm mt-0.5">To: Municipal Sanitation Department</p>
           </div>
 
@@ -66,10 +117,10 @@ export default function GeneratedComplaint({ navigate }: Props) {
           <div className="px-6 py-4 bg-[#F8FAFC] border-b border-[#D1DCE8]">
             <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 text-xs">
               {[
-                { label: 'Case ID', value: 'CL-10482', mono: true },
+                { label: 'Status', value: 'Draft', mono: true },
                 { label: 'Priority', value: null, badge: true },
-                { label: 'Location', value: 'Block B, XYZ Road' },
-                { label: 'Duration', value: '5 days' },
+                { label: 'Location', value: initialLocation },
+                { label: 'Evidence', value: `${reportData?.uploadedFiles?.length || 1} photo(s)` },
               ].map((row) => (
                 <div key={row.label}>
                   <span className="text-[#8BA3BC] font-medium uppercase tracking-wide block mb-0.5">{row.label}</span>
@@ -137,7 +188,7 @@ export default function GeneratedComplaint({ navigate }: Props) {
               {isEditing ? '✓ Done Editing' : '✏️ Edit Complaint'}
             </button>
             <button
-              onClick={() => navigate('success')}
+              onClick={handleSubmitComplaint}
               className="flex-1 bg-[#1B3A6B] text-white font-semibold py-3 rounded-xl hover:bg-[#142E57] transition-colors text-sm shadow-sm"
             >
               Submit Complaint →

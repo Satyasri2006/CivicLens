@@ -1,18 +1,28 @@
 import { useState } from 'react';
-import type { Page, Status, Priority } from '../types';
+import type { Page, Status, Priority, Complaint } from '../types';
+import type { User } from '../App';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
 import PriorityBadge from '../components/PriorityBadge';
-import { complaints } from '../data/mockData';
 
 interface Props {
   navigate: (page: Page, opts?: { complaintId?: string }) => void;
+  user?: User | null;
+  onOpenAuth?: (targetPage?: Page) => void;
+  onLogout?: () => void;
+  complaints: Complaint[];
 }
 
 const statusFilters: (Status | 'All')[] = ['All', 'Submitted', 'Under Review', 'In Progress', 'Resolved'];
 const priorityFilters: (Priority | 'All')[] = ['All', 'LOW', 'MEDIUM', 'HIGH', 'URGENT'];
 
-export default function ComplaintHistory({ navigate }: Props) {
+export default function ComplaintHistory({
+  navigate,
+  user,
+  onOpenAuth,
+  onLogout,
+  complaints,
+}: Props) {
   const [statusFilter, setStatusFilter] = useState<Status | 'All'>('All');
   const [priorityFilter, setPriorityFilter] = useState<Priority | 'All'>('All');
   const [search, setSearch] = useState('');
@@ -26,7 +36,13 @@ export default function ComplaintHistory({ navigate }: Props) {
 
   return (
     <div className="min-h-screen bg-[#F0F4F8]">
-      <Navbar navigate={navigate} currentPage="complaint-history" />
+      <Navbar
+        navigate={navigate}
+        currentPage="complaint-history"
+        user={user}
+        onOpenAuth={onOpenAuth}
+        onLogout={onLogout}
+      />
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
           <div>
@@ -51,8 +67,8 @@ export default function ComplaintHistory({ navigate }: Props) {
             className="w-full border border-[#D1DCE8] rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:border-[#2563EB] text-[#0F1C2E] placeholder:text-[#8BA3BC]"
           />
           <div className="flex flex-wrap gap-3">
-            <div className="flex flex-wrap gap-1.5">
-              <span className="text-xs text-[#5A7090] font-medium self-center mr-1">Status:</span>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-xs text-[#5A7090] font-medium mr-1">Status:</span>
               {statusFilters.map((f) => (
                 <button
                   key={f}
@@ -67,8 +83,8 @@ export default function ComplaintHistory({ navigate }: Props) {
                 </button>
               ))}
             </div>
-            <div className="flex flex-wrap gap-1.5">
-              <span className="text-xs text-[#5A7090] font-medium self-center mr-1">Priority:</span>
+            <div className="flex flex-wrap gap-1.5 items-center">
+              <span className="text-xs text-[#5A7090] font-medium mr-1">Priority:</span>
               {priorityFilters.map((f) => (
                 <button
                   key={f}
@@ -86,7 +102,7 @@ export default function ComplaintHistory({ navigate }: Props) {
           </div>
         </div>
 
-        {/* Table */}
+        {/* Table View for Desktop / Card View for Mobile */}
         {filtered.length === 0 ? (
           <div className="bg-white rounded-xl border border-[#D1DCE8] p-16 flex flex-col items-center text-center">
             <span className="text-4xl mb-3">🔍</span>
@@ -94,32 +110,55 @@ export default function ComplaintHistory({ navigate }: Props) {
             <p className="text-[#5A7090] text-sm">Try adjusting your filters or search query.</p>
           </div>
         ) : (
-          <div className="bg-white rounded-xl border border-[#D1DCE8] overflow-hidden">
-            {/* Table header */}
-            <div className="grid grid-cols-[1fr,1.5fr,1fr,1.5fr,1fr,1fr,1fr] gap-4 px-5 py-3 bg-[#F8FAFC] border-b border-[#D1DCE8] text-xs font-semibold text-[#5A7090] uppercase tracking-wider">
-              <span>Case ID</span>
-              <span>Issue</span>
-              <span>Category</span>
-              <span className="hidden lg:block">Department</span>
-              <span>Priority</span>
-              <span>Date</span>
-              <span>Status</span>
+          <div>
+            {/* Desktop Table View (>= 768px) */}
+            <div className="hidden md:block bg-white rounded-xl border border-[#D1DCE8] overflow-hidden">
+              <div className="grid grid-cols-[1fr,1.5fr,1fr,1.2fr,1fr,1fr,1fr] gap-4 px-5 py-3 bg-[#F8FAFC] border-b border-[#D1DCE8] text-xs font-semibold text-[#5A7090] uppercase tracking-wider">
+                <span>Case ID</span>
+                <span>Issue</span>
+                <span>Category</span>
+                <span>Department</span>
+                <span>Priority</span>
+                <span>Date</span>
+                <span>Status</span>
+              </div>
+              <div className="divide-y divide-[#F0F4F8]">
+                {filtered.map((c) => (
+                  <button
+                    key={c.id}
+                    onClick={() => navigate('case-tracking', { complaintId: c.id })}
+                    className="w-full grid grid-cols-[1fr,1.5fr,1fr,1.2fr,1fr,1fr,1fr] gap-4 px-5 py-4 text-left hover:bg-[#F8FAFC] transition-colors group items-center"
+                  >
+                    <span className="font-mono text-xs text-[#2563EB] font-semibold group-hover:underline">{c.id}</span>
+                    <span className="text-sm font-medium text-[#0F1C2E] truncate">{c.issue}</span>
+                    <span className="text-sm text-[#5A7090]">{c.category}</span>
+                    <span className="text-xs text-[#5A7090] truncate">{c.department}</span>
+                    <div><PriorityBadge priority={c.priority} /></div>
+                    <span className="text-xs text-[#5A7090]">{c.date}</span>
+                    <div><StatusBadge status={c.status} /></div>
+                  </button>
+                ))}
+              </div>
             </div>
-            <div className="divide-y divide-[#F0F4F8]">
+
+            {/* Mobile Card View (< 768px) */}
+            <div className="md:hidden space-y-3">
               {filtered.map((c) => (
-                <button
+                <div
                   key={c.id}
                   onClick={() => navigate('case-tracking', { complaintId: c.id })}
-                  className="w-full grid grid-cols-[1fr,1.5fr,1fr,1.5fr,1fr,1fr,1fr] gap-4 px-5 py-4 text-left hover:bg-[#F8FAFC] transition-colors group"
+                  className="bg-white rounded-xl border border-[#D1DCE8] p-4 space-y-3 cursor-pointer hover:border-[#2563EB] transition-all"
                 >
-                  <span className="font-mono text-xs text-[#2563EB] font-semibold group-hover:underline">{c.id}</span>
-                  <span className="text-sm font-medium text-[#0F1C2E] truncate">{c.issue}</span>
-                  <span className="text-sm text-[#5A7090]">{c.category}</span>
-                  <span className="hidden lg:block text-xs text-[#5A7090] truncate">{c.department}</span>
-                  <span><PriorityBadge priority={c.priority} /></span>
-                  <span className="text-xs text-[#5A7090]">{c.date}</span>
-                  <span><StatusBadge status={c.status} /></span>
-                </button>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs text-[#2563EB] font-semibold">{c.id}</span>
+                    <PriorityBadge priority={c.priority} />
+                  </div>
+                  <h4 className="font-display font-semibold text-[#0F1C2E] text-sm">{c.issue}</h4>
+                  <div className="flex items-center justify-between text-xs text-[#5A7090]">
+                    <span>{c.category} · {c.date}</span>
+                    <StatusBadge status={c.status} />
+                  </div>
+                </div>
               ))}
             </div>
           </div>

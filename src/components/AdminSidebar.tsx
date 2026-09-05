@@ -1,3 +1,4 @@
+import { useState } from 'react';
 import type { AdminView, Page } from '../types';
 
 const navItems: { key: AdminView; label: string; icon: React.ReactNode }[] = [
@@ -66,64 +67,100 @@ interface Props {
 }
 
 export default function AdminSidebar({ activeView, onViewChange, navigate }: Props) {
+  const [mobileOpen, setMobileOpen] = useState(false);
+
   return (
-    <aside className="w-60 bg-[#1B3A6B] flex flex-col min-h-screen shrink-0">
-      <div className="h-16 flex items-center px-5 border-b border-white/10">
-        <button onClick={() => navigate('landing')} className="flex items-center gap-2.5 group">
-          <div className="w-7 h-7 rounded-md bg-white/15 flex items-center justify-center">
-            <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
-              <circle cx="10" cy="10" r="8" opacity={0.3} />
-              <circle cx="10" cy="10" r="5" opacity={0.6} />
-              <circle cx="10" cy="10" r="2" />
+    <>
+      {/* Mobile Drawer Button */}
+      <button
+        onClick={() => setMobileOpen(!mobileOpen)}
+        className="lg:hidden fixed bottom-4 right-4 z-50 bg-[#1B3A6B] text-white p-3 rounded-full shadow-lg border border-white/20"
+      >
+        <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 6h16M4 12h16M4 18h16" />
+        </svg>
+      </button>
+
+      {/* Backdrop for Mobile Drawer */}
+      {mobileOpen && (
+        <div
+          onClick={() => setMobileOpen(false)}
+          className="lg:hidden fixed inset-0 bg-slate-900/50 z-40"
+        />
+      )}
+
+      {/* Sidebar Content */}
+      <aside
+        className={`fixed lg:static inset-y-0 left-0 z-40 w-60 bg-[#1B3A6B] flex flex-col min-h-screen shrink-0 transition-transform duration-300 ${
+          mobileOpen ? 'translate-x-0' : '-translate-x-full lg:translate-x-0'
+        }`}
+      >
+        <div className="h-16 flex items-center justify-between px-5 border-b border-white/10">
+          <button onClick={() => navigate('landing')} className="flex items-center gap-2.5 group">
+            <div className="w-7 h-7 rounded-md bg-white/15 flex items-center justify-center">
+              <svg viewBox="0 0 20 20" fill="currentColor" className="w-4 h-4 text-white">
+                <circle cx="10" cy="10" r="8" opacity={0.3} />
+                <circle cx="10" cy="10" r="5" opacity={0.6} />
+                <circle cx="10" cy="10" r="2" />
+              </svg>
+            </div>
+            <span className="font-display font-bold text-lg text-white">CivicLens</span>
+          </button>
+          <button
+            onClick={() => setMobileOpen(false)}
+            className="lg:hidden text-white/70 hover:text-white p-1"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div className="px-3 py-4 flex-1 overflow-y-auto">
+          <p className="text-white/40 text-xs font-semibold uppercase tracking-widest px-2 mb-3">Admin Panel</p>
+          <nav className="space-y-0.5">
+            {navItems.map(({ key, label, icon }) => (
+              <button
+                key={key}
+                onClick={() => {
+                  onViewChange(key);
+                  setMobileOpen(false);
+                }}
+                className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
+                  activeView === key
+                    ? 'bg-white/15 text-white'
+                    : 'text-white/60 hover:text-white hover:bg-white/8'
+                }`}
+              >
+                <span className={activeView === key ? 'text-white' : 'text-white/50'}>{icon}</span>
+                {label}
+                {key === 'complaints' && (
+                  <span className="ml-auto text-xs bg-red-500 text-white rounded-full px-1.5 py-0.5 font-mono">42</span>
+                )}
+              </button>
+            ))}
+          </nav>
+        </div>
+
+        <div className="px-3 pb-4 border-t border-white/10 pt-3">
+          <button
+            onClick={() => navigate('dashboard')}
+            className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/8 transition-all"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
             </svg>
-          </div>
-          <span className="font-display font-bold text-lg text-white">CivicLens</span>
-        </button>
-      </div>
-
-      <div className="px-3 py-4 flex-1">
-        <p className="text-white/40 text-xs font-semibold uppercase tracking-widest px-2 mb-3">Admin Panel</p>
-        <nav className="space-y-0.5">
-          {navItems.map(({ key, label, icon }) => (
-            <button
-              key={key}
-              onClick={() => onViewChange(key)}
-              className={`w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition-all ${
-                activeView === key
-                  ? 'bg-white/15 text-white'
-                  : 'text-white/60 hover:text-white hover:bg-white/8'
-              }`}
-            >
-              <span className={activeView === key ? 'text-white' : 'text-white/50'}>{icon}</span>
-              {label}
-              {key === 'complaints' && (
-                <span className="ml-auto text-xs bg-red-500 text-white rounded-full px-1.5 py-0.5 font-mono">42</span>
-              )}
-            </button>
-          ))}
-        </nav>
-      </div>
-
-      <div className="px-3 pb-4 border-t border-white/10 pt-3">
-        <button
-          onClick={() => navigate('dashboard')}
-          className="w-full flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm text-white/60 hover:text-white hover:bg-white/8 transition-all"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.75} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-          Back to Citizen View
-        </button>
-        <div className="flex items-center gap-2.5 px-3 py-2 mt-1">
-          <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
-            <span className="text-xs font-bold text-white">AD</span>
-          </div>
-          <div>
-            <p className="text-xs text-white font-medium">Admin User</p>
-            <p className="text-xs text-white/40">City Operations</p>
+            Back to Citizen View
+          </button>
+          <div className="flex items-center gap-2.5 px-3 py-2 mt-1">
+            <div className="w-7 h-7 rounded-full bg-white/20 flex items-center justify-center">
+              <span className="text-xs font-bold text-white">AD</span>
+            </div>
+            <div>
+              <p className="text-xs text-white font-medium">Admin Operations</p>
+              <p className="text-xs text-white/40">City Operations</p>
+            </div>
           </div>
         </div>
-      </div>
-    </aside>
+      </aside>
+    </>
   );
 }

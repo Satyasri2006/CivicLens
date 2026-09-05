@@ -1,8 +1,12 @@
 import type { Page } from '../types';
+import type { User } from '../App';
 import Navbar from '../components/Navbar';
 
 interface Props {
   navigate: (page: Page) => void;
+  user?: User | null;
+  onOpenAuth?: (targetPage?: Page) => void;
+  onLogout?: () => void;
 }
 
 const features = [
@@ -23,10 +27,22 @@ const steps = [
   { num: '04', title: 'Submit & Track', desc: 'Generate a formal complaint and track its status with a unique case ID.' },
 ];
 
-export default function LandingPage({ navigate }: Props) {
+export default function LandingPage({ navigate, user, onOpenAuth, onLogout }: Props) {
+  const scrollToHowItWorks = () => {
+    const el = document.getElementById('how-it-works');
+    if (el) el.scrollIntoView({ behavior: 'smooth' });
+  };
+
   return (
     <div className="min-h-screen bg-white">
-      <Navbar navigate={navigate} currentPage="landing" variant="landing" />
+      <Navbar
+        navigate={navigate}
+        currentPage="landing"
+        variant="landing"
+        user={user}
+        onOpenAuth={onOpenAuth}
+        onLogout={onLogout}
+      />
 
       {/* Hero */}
       <section className="bg-gradient-to-br from-[#1B3A6B] via-[#1B3A6B] to-[#0F2442] pt-20 pb-24 px-4 overflow-hidden relative">
@@ -48,14 +64,18 @@ export default function LandingPage({ navigate }: Props) {
                 CivicLens transforms everyday civic complaints into structured, actionable government service requests — automatically classified, routed, and tracked.
               </p>
 
-              {/* Input modes */}
+              {/* Input modes preview */}
               <div className="flex gap-3 mb-8 flex-wrap">
                 {[
                   { icon: '🎤', label: 'Speak', desc: 'Describe in your language' },
                   { icon: '📷', label: 'Snap', desc: 'Upload a photo' },
                   { icon: '✍️', label: 'Type', desc: 'Write your complaint' },
                 ].map((m) => (
-                  <div key={m.label} className="bg-white/10 border border-white/20 rounded-xl p-3.5 flex items-center gap-3 min-w-[150px] hover:bg-white/15 transition-colors cursor-pointer">
+                  <div
+                    key={m.label}
+                    onClick={() => navigate('report')}
+                    className="bg-white/10 border border-white/20 rounded-xl p-3.5 flex items-center gap-3 min-w-[150px] hover:bg-white/15 transition-colors cursor-pointer"
+                  >
                     <span className="text-2xl">{m.icon}</span>
                     <div>
                       <p className="text-white font-semibold text-sm">{m.label}</p>
@@ -72,7 +92,10 @@ export default function LandingPage({ navigate }: Props) {
                 >
                   Report a Civic Issue →
                 </button>
-                <button className="text-white/80 border border-white/30 font-medium px-6 py-3 rounded-xl hover:bg-white/10 transition-all text-sm">
+                <button
+                  onClick={scrollToHowItWorks}
+                  className="text-white/80 border border-white/30 font-medium px-6 py-3 rounded-xl hover:bg-white/10 transition-all text-sm"
+                >
                   See How It Works
                 </button>
               </div>
@@ -143,7 +166,7 @@ export default function LandingPage({ navigate }: Props) {
       </div>
 
       {/* How It Works */}
-      <section className="py-20 px-4">
+      <section id="how-it-works" className="py-20 px-4">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-xs text-[#2563EB] font-semibold uppercase tracking-widest mb-2">Process</p>
@@ -166,7 +189,7 @@ export default function LandingPage({ navigate }: Props) {
       </section>
 
       {/* Features */}
-      <section className="py-20 px-4 bg-[#F0F4F8]">
+      <section id="features" className="py-20 px-4 bg-[#F0F4F8]">
         <div className="max-w-7xl mx-auto">
           <div className="text-center mb-14">
             <p className="text-xs text-[#2563EB] font-semibold uppercase tracking-widest mb-2">Capabilities</p>
@@ -189,7 +212,7 @@ export default function LandingPage({ navigate }: Props) {
         <div className="max-w-2xl mx-auto text-center">
           <h2 className="font-display font-bold text-3xl text-white mb-4">Your city, your voice.</h2>
           <p className="text-white/70 mb-8">Report civic problems quickly and confidently. CivicLens does the rest.</p>
-          <div className="flex gap-3 justify-center">
+          <div className="flex gap-3 justify-center flex-wrap">
             <button
               onClick={() => navigate('report')}
               className="bg-white text-[#1B3A6B] font-semibold px-8 py-3 rounded-xl hover:bg-blue-50 transition-all shadow-lg text-sm"
@@ -207,7 +230,7 @@ export default function LandingPage({ navigate }: Props) {
       </section>
 
       {/* Footer */}
-      <footer className="bg-[#0F2442] py-8 px-4">
+      <footer id="footer" className="bg-[#0F2442] py-8 px-4">
         <div className="max-w-7xl mx-auto flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
             <div className="w-6 h-6 rounded-md bg-[#2563EB] flex items-center justify-center">

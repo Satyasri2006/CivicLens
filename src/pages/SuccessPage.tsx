@@ -1,16 +1,40 @@
-import type { Page } from '../types';
+import type { Page, Complaint } from '../types';
+import type { User } from '../App';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
 import PriorityBadge from '../components/PriorityBadge';
 
 interface Props {
-  navigate: (page: Page) => void;
+  navigate: (page: Page, opts?: { complaintId?: string }) => void;
+  user?: User | null;
+  onOpenAuth?: (targetPage?: Page) => void;
+  onLogout?: () => void;
+  complaintId?: string;
+  complaint?: Complaint;
 }
 
-export default function SuccessPage({ navigate }: Props) {
+export default function SuccessPage({
+  navigate,
+  user,
+  onOpenAuth,
+  onLogout,
+  complaintId = 'CL-10482',
+  complaint,
+}: Props) {
+  const displayIssue = complaint?.issue || 'Garbage accumulation';
+  const displayDept = complaint?.department || 'Municipal Sanitation';
+  const displayLoc = complaint?.location || 'Block B, XYZ Road';
+  const displayEvidence = complaint?.evidence ? `${complaint.evidence} photo(s)` : '1 photo';
+
   return (
     <div className="min-h-screen bg-[#F0F4F8]">
-      <Navbar navigate={navigate} currentPage="report" />
+      <Navbar
+        navigate={navigate}
+        currentPage="report"
+        user={user}
+        onOpenAuth={onOpenAuth}
+        onLogout={onLogout}
+      />
       <div className="max-w-xl mx-auto px-4 py-12 text-center animate-fadeInUp">
         {/* Success icon */}
         <div className="relative inline-flex mb-6">
@@ -28,7 +52,7 @@ export default function SuccessPage({ navigate }: Props) {
         {/* Case ID */}
         <div className="inline-flex items-center gap-3 bg-[#1B3A6B] text-white px-6 py-3 rounded-xl mb-6 shadow-lg">
           <span className="text-sm font-medium text-white/70">Case ID</span>
-          <span className="font-mono font-bold text-xl"># CL-10482</span>
+          <span className="font-mono font-bold text-xl"># {complaintId}</span>
         </div>
 
         {/* Summary card */}
@@ -37,27 +61,27 @@ export default function SuccessPage({ navigate }: Props) {
           <div className="space-y-3">
             <div className="flex justify-between items-center text-sm">
               <span className="text-[#5A7090]">Issue</span>
-              <span className="font-medium text-[#0F1C2E]">Garbage accumulation</span>
+              <span className="font-medium text-[#0F1C2E] truncate max-w-[200px]">{displayIssue}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-[#5A7090]">Department</span>
-              <span className="font-medium text-[#0F1C2E]">Municipal Sanitation</span>
+              <span className="font-medium text-[#0F1C2E]">{displayDept}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-[#5A7090]">Priority</span>
-              <PriorityBadge priority="HIGH" />
+              <PriorityBadge priority={complaint?.priority || 'HIGH'} />
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-[#5A7090]">Location</span>
-              <span className="font-medium text-[#0F1C2E]">Block B, XYZ Road</span>
+              <span className="font-medium text-[#0F1C2E]">{displayLoc}</span>
             </div>
             <div className="flex justify-between items-center text-sm">
               <span className="text-[#5A7090]">Evidence</span>
-              <span className="font-medium text-[#0F1C2E]">2 photos</span>
+              <span className="font-medium text-[#0F1C2E]">{displayEvidence}</span>
             </div>
             <div className="flex justify-between items-center text-sm border-t border-[#D1DCE8] pt-3">
               <span className="text-[#5A7090]">Status</span>
-              <StatusBadge status="Submitted" size="md" />
+              <StatusBadge status={complaint?.status || 'Submitted'} size="md" />
             </div>
           </div>
         </div>
@@ -66,7 +90,7 @@ export default function SuccessPage({ navigate }: Props) {
         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 text-left mb-6">
           <p className="text-xs font-semibold text-blue-700 uppercase tracking-wide mb-2">What happens next?</p>
           <ul className="space-y-1.5 text-xs text-blue-700">
-            <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shrink-0" />Municipal Sanitation will review your complaint</li>
+            <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shrink-0" />{displayDept} will review your complaint</li>
             <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shrink-0" />A field team will be assigned for inspection</li>
             <li className="flex items-center gap-2"><span className="w-1 h-1 rounded-full bg-blue-400 shrink-0" />You'll be notified when the status changes</li>
           </ul>
@@ -75,7 +99,7 @@ export default function SuccessPage({ navigate }: Props) {
         {/* Actions */}
         <div className="flex gap-3">
           <button
-            onClick={() => navigate('case-tracking')}
+            onClick={() => navigate('case-tracking', { complaintId })}
             className="flex-1 bg-[#1B3A6B] text-white font-semibold py-3 rounded-xl hover:bg-[#142E57] transition-colors text-sm shadow-sm"
           >
             Track Complaint →

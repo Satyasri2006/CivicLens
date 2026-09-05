@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import type { Page } from './types';
+import type { Page, Complaint } from './types';
 import LandingPage from './pages/LandingPage';
 import CitizenDashboard from './pages/CitizenDashboard';
 import ReportIssue from './pages/ReportIssue';
@@ -10,14 +10,75 @@ import CaseTracking from './pages/CaseTracking';
 import ComplaintHistory from './pages/ComplaintHistory';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminComplaintDetails from './pages/AdminComplaintDetails';
+import AuthModal from './components/AuthModal';
+import { complaints as initialComplaints } from './data/mockData';
+
+export interface User {
+  name: string;
+  email: string;
+  role: 'citizen' | 'admin';
+}
+
+export interface ReportData {
+  inputMode: 'text' | 'voice' | 'photo';
+  description: string;
+  language: string;
+  location: string;
+  uploadedFiles: string[];
+  generatedText?: string;
+}
 
 export default function App() {
   const [page, setPage] = useState<Page>('landing');
   const [complaintId, setComplaintId] = useState<string>('CL-10482');
+  const [user, setUser] = useState<User | null>(null);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [intendedPage, setIntendedPage] = useState<Page | null>(null);
 
-  const navigate = (p: Page, opts?: { complaintId?: string }) => {
+  // Dynamic complaint management
+  const [complaintList, setComplaintList] = useState<Complaint[]>(initialComplaints);
+  const [activeReportData, setActiveReportData] = useState<ReportData | null>(null);
+
+  const navigate = (p: Page, opts?: { complaintId?: string; reportData?: ReportData }) => {
+    // Protected route check for reporting an issue
+    if (p === 'report' && !user) {
+      setIntendedPage('report');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     if (opts?.complaintId) setComplaintId(opts.complaintId);
+    if (opts?.reportData) setActiveReportData(opts.reportData);
     setPage(p);
+  };
+
+  const handleOpenAuth = (targetPage?: Page) => {
+    if (targetPage) setIntendedPage(targetPage);
+    setIsAuthModalOpen(true);
+  };
+
+  const handleLogout = () => {
+    setUser(null);
+    setPage('landing');
+  };
+
+  const handleLoginSuccess = (loggedInUser: User) => {
+    setUser(loggedInUser);
+    setIsAuthModalOpen(false);
+    
+    if (intendedPage) {
+      setPage(intendedPage);
+      setIntendedPage(null);
+    } else if (loggedInUser.role === 'admin') {
+      setPage('admin');
+    } else {
+      setPage('dashboard');
+    }
+  };
+
+  const handleNewComplaintSubmitted = (newComplaint: Complaint) => {
+    setComplaintList((prev) => [newComplaint, ...prev]);
+    setComplaintId(newComplaint.id);
   };
 
   useEffect(() => {
@@ -26,16 +87,111 @@ export default function App() {
 
   return (
     <div className="min-h-screen">
-      {page === 'landing' && <LandingPage navigate={navigate} />}
-      {page === 'dashboard' && <CitizenDashboard navigate={navigate} />}
-      {page === 'report' && <ReportIssue navigate={navigate} />}
-      {page === 'ai-analysis' && <AIAnalysisPage navigate={navigate} />}
-      {page === 'generated-complaint' && <GeneratedComplaint navigate={navigate} />}
-      {page === 'success' && <SuccessPage navigate={navigate} />}
-      {page === 'case-tracking' && <CaseTracking navigate={navigate} complaintId={complaintId} />}
-      {page === 'complaint-history' && <ComplaintHistory navigate={navigate} />}
-      {page === 'admin' && <AdminDashboard navigate={navigate} />}
-      {page === 'admin-complaint-details' && <AdminComplaintDetails navigate={navigate} complaintId={complaintId} />}
+      {page === 'landing' && (
+        <LandingPage
+          navigate={navigate}
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+        />
+      )}
+      {page === 'dashboard' && (
+        <CitizenDashboard
+          navigate={navigate}
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          complaints={complaintList}
+        />
+      )}
+      {page === 'report' && (
+        <ReportIssue
+          navigate={navigate}
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+        />
+      )}
+      {page === 'ai-analysis' && (
+        <AIAnalysisPage
+          navigate={navigate}
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          reportData={activeReportData}
+        />
+      )}
+      {page === 'generated-complaint' && (
+        <GeneratedComplaint
+          navigate={navigate}
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          reportData={activeReportData}
+          onComplaintSubmitted={handleNewComplaintSubmitted}
+        />
+      )}
+      {page === 'success' && (
+        <SuccessPage
+          navigate={navigate}
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          complaintId={complaintId}
+          complaint={complaintList.find((c) => c.id === complaintId)}
+        />
+      )}
+      {page === 'case-tracking' && (
+        <CaseTracking
+          navigate={navigate}
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          complaintId={complaintId}
+          complaints={complaintList}
+        />
+      )}
+      {page === 'complaint-history' && (
+        <ComplaintHistory
+          navigate={navigate}
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          complaints={complaintList}
+        />
+      )}
+      {page === 'admin' && (
+        <AdminDashboard
+          navigate={navigate}
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          complaints={complaintList}
+        />
+      )}
+      {page === 'admin-complaint-details' && (
+        <AdminComplaintDetails
+          navigate={navigate}
+          user={user}
+          onOpenAuth={handleOpenAuth}
+          onLogout={handleLogout}
+          complaintId={complaintId}
+          complaints={complaintList}
+          setComplaints={setComplaintList}
+        />
+      )}
+
+      {/* Global Auth Modal */}
+      <AuthModal
+        isOpen={isAuthModalOpen}
+        onClose={() => setIsAuthModalOpen(false)}
+        onLoginSuccess={handleLoginSuccess}
+        intendedAction={
+          intendedPage === 'report'
+            ? 'Please sign in or register to submit a civic issue report.'
+            : undefined
+        }
+      />
     </div>
   );
 }

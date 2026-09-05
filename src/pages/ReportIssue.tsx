@@ -1,14 +1,18 @@
 import { useState } from 'react';
 import type { Page, InputMode } from '../types';
+import type { User, ReportData } from '../App';
 import Navbar from '../components/Navbar';
 
 interface Props {
-  navigate: (page: Page) => void;
+  navigate: (page: Page, opts?: { reportData?: ReportData }) => void;
+  user?: User | null;
+  onOpenAuth?: (targetPage?: Page) => void;
+  onLogout?: () => void;
 }
 
 const languages = ['English', 'Telugu', 'Hindi', 'Tamil', 'Kannada', 'Malayalam'];
 
-export default function ReportIssue({ navigate }: Props) {
+export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Props) {
   const [inputMode, setInputMode] = useState<InputMode>('text');
   const [description, setDescription] = useState('');
   const [language, setLanguage] = useState('English');
@@ -22,22 +26,44 @@ export default function ReportIssue({ navigate }: Props) {
     setTimeout(() => {
       setLocation('Block B, XYZ Road, Sector 14, City');
       setLocationDetected(true);
-    }, 800);
+    }, 400);
   };
 
   const handleFileUpload = () => {
-    setUploadedFiles(['garbage_photo_1.jpg', 'garbage_area.jpg']);
+    if (!uploadedFiles.includes('evidence_photo_1.jpg')) {
+      setUploadedFiles((prev) => [...prev, 'evidence_photo_1.jpg', 'site_area_2.jpg']);
+    }
+  };
+
+  const handleRemoveFile = (fileName: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setUploadedFiles((prev) => prev.filter((f) => f !== fileName));
   };
 
   const handleSubmit = () => {
     const newErrors: { desc?: string; location?: string } = {};
-    if (!description.trim()) newErrors.desc = 'Please describe the issue.';
-    if (!location.trim()) newErrors.location = 'Please provide a location.';
+    if (!description.trim() && inputMode === 'text') {
+      newErrors.desc = 'Please describe the civic issue.';
+    }
+    if (!location.trim()) {
+      newErrors.location = 'Please provide or select a location.';
+    }
     if (Object.keys(newErrors).length > 0) {
       setErrors(newErrors);
       return;
     }
-    navigate('ai-analysis');
+
+    const defaultDesc = description.trim() || 'Civic issue reported via CivicLens AI assistant.';
+
+    navigate('ai-analysis', {
+      reportData: {
+        inputMode,
+        description: defaultDesc,
+        language,
+        location,
+        uploadedFiles,
+      },
+    });
   };
 
   const tabs: { mode: InputMode; icon: string; label: string }[] = [
@@ -48,7 +74,13 @@ export default function ReportIssue({ navigate }: Props) {
 
   return (
     <div className="min-h-screen bg-[#F0F4F8]">
-      <Navbar navigate={navigate} currentPage="report" />
+      <Navbar
+        navigate={navigate}
+        currentPage="report"
+        user={user}
+        onOpenAuth={onOpenAuth}
+        onLogout={onLogout}
+      />
 
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8">
         <div className="mb-8">
@@ -82,35 +114,42 @@ export default function ReportIssue({ navigate }: Props) {
           {inputMode === 'voice' && (
             <div className="flex flex-col items-center py-8 gap-4">
               <div className="relative">
-                <div className="w-20 h-20 rounded-full bg-[#EBF0F8] flex items-center justify-center border-2 border-[#D1DCE8] cursor-pointer hover:border-[#1B3A6B] transition-colors">
+                <div
+                  onClick={() => {
+                    setDescription('Garbage has accumulated outside Block B for five days near college campus causing severe odor.');
+                    setInputMode('text');
+                  }}
+                  className="w-20 h-20 rounded-full bg-[#EBF0F8] flex items-center justify-center border-2 border-[#D1DCE8] cursor-pointer hover:border-[#1B3A6B] hover:scale-105 transition-all shadow-sm"
+                >
                   <span className="text-3xl">🎤</span>
                 </div>
               </div>
-              <p className="text-[#5A7090] text-sm text-center">Tap the microphone and describe your issue<br />in your preferred language.</p>
-              <button className="text-sm text-[#2563EB] font-medium">Or switch to text input →</button>
+              <p className="text-[#5A7090] text-sm text-center">Tap the microphone and speak your report.<br />CivicLens will transcribe and classify it.</p>
+              <button
+                onClick={() => setInputMode('text')}
+                className="text-sm text-[#2563EB] font-medium hover:underline"
+              >
+                Or switch to text input →
+              </button>
             </div>
           )}
 
           {/* Photo mode */}
           {inputMode === 'photo' && (
-            <div className="flex flex-col items-center py-8 gap-4">
-              <div className="w-full border-2 border-dashed border-[#D1DCE8] rounded-xl p-10 flex flex-col items-center gap-3 cursor-pointer hover:border-[#2563EB] transition-colors" onClick={handleFileUpload}>
+            <div className="flex flex-col items-center py-6 gap-4">
+              <div
+                className="w-full border-2 border-dashed border-[#D1DCE8] rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer hover:border-[#2563EB] transition-colors bg-[#F8FAFC]"
+                onClick={handleFileUpload}
+              >
                 <span className="text-4xl">📷</span>
-                <p className="text-[#5A7090] text-sm text-center">Take a photo or upload from your gallery.<br />CivicLens will analyze the image.</p>
-                <button className="text-sm bg-[#1B3A6B] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#142E57] transition-colors">
+                <p className="text-[#5A7090] text-sm text-center">Take a photo or upload from your gallery.<br />CivicLens will detect visible civic hazards.</p>
+                <button
+                  type="button"
+                  className="text-sm bg-[#1B3A6B] text-white px-4 py-2 rounded-lg font-medium hover:bg-[#142E57] transition-colors shadow-sm"
+                >
                   Upload Photo
                 </button>
               </div>
-              {uploadedFiles.length > 0 && (
-                <div className="w-full flex gap-3">
-                  {uploadedFiles.map((f) => (
-                    <div key={f} className="flex-1 bg-[#F0F4F8] border border-[#D1DCE8] rounded-lg p-3 flex items-center gap-2 text-xs text-[#5A7090]">
-                      <span>📎</span>
-                      <span className="truncate">{f}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
             </div>
           )}
 
@@ -133,7 +172,7 @@ export default function ReportIssue({ navigate }: Props) {
                   setDescription(e.target.value);
                   if (e.target.value) setErrors((p) => ({ ...p, desc: undefined }));
                 }}
-                placeholder="Example: There has been garbage piling up outside my college for the last five days. The smell is unbearable and residents are suffering..."
+                placeholder="Example: Garbage has been piling up near Block B for 5 days. The odor is unbearable and residents need immediate cleanup..."
                 rows={5}
                 className={`w-full border rounded-xl p-4 text-sm text-[#0F1C2E] resize-none focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all placeholder:text-[#8BA3BC] ${
                   errors.desc ? 'border-red-300 bg-red-50' : 'border-[#D1DCE8]'
@@ -155,12 +194,13 @@ export default function ReportIssue({ navigate }: Props) {
                   setLocation(e.target.value);
                   if (e.target.value) setErrors((p) => ({ ...p, location: undefined }));
                 }}
-                placeholder="Enter address or area"
+                placeholder="Enter address or area (e.g. Block B, XYZ Road)"
                 className={`flex-1 border rounded-xl px-4 py-2.5 text-sm focus:outline-none focus:ring-2 focus:ring-[#2563EB]/20 focus:border-[#2563EB] transition-all ${
                   errors.location ? 'border-red-300 bg-red-50' : 'border-[#D1DCE8]'
                 }`}
               />
               <button
+                type="button"
                 onClick={handleDetectLocation}
                 className="flex items-center gap-2 bg-[#EBF0F8] text-[#1B3A6B] text-sm font-medium px-4 py-2.5 rounded-xl hover:bg-[#D1DCE8] transition-colors border border-[#D1DCE8] whitespace-nowrap"
               >
@@ -174,24 +214,29 @@ export default function ReportIssue({ navigate }: Props) {
             {errors.location && <p className="text-xs text-red-600 mt-1">{errors.location}</p>}
             {locationDetected && (
               <p className="text-xs text-green-600 mt-1 flex items-center gap-1">
-                <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                Location detected
+                <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                Location detected: Block B, XYZ Road, Sector 14
               </p>
             )}
 
-            {/* Map placeholder */}
-            <div className="mt-3 bg-[#E8EFF7] rounded-xl h-28 flex items-center justify-center border border-[#D1DCE8] relative overflow-hidden">
+            {/* Interactive Map placeholder */}
+            <div
+              onClick={() => {
+                if (!location) setLocation('Block B, XYZ Road, Sector 14');
+              }}
+              className="mt-3 bg-[#E8EFF7] rounded-xl h-28 flex items-center justify-center border border-[#D1DCE8] relative overflow-hidden cursor-pointer hover:border-[#2563EB] transition-colors"
+            >
               <div className="absolute inset-0 opacity-20" style={{ backgroundImage: 'linear-gradient(#D1DCE8 1px, transparent 1px), linear-gradient(90deg, #D1DCE8 1px, transparent 1px)', backgroundSize: '20px 20px' }} />
               <div className="relative z-10 flex flex-col items-center gap-1">
-                <svg className="w-6 h-6 text-[#2563EB]" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <svg className="w-6 h-6 text-[#2563EB] animate-bounce" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
                 </svg>
-                <span className="text-xs text-[#5A7090]">{location || 'Select location on map'}</span>
+                <span className="text-xs text-[#1B3A6B] font-medium">{location || 'Click map pin to select location'}</span>
               </div>
             </div>
           </div>
 
-          {/* Photo Upload */}
+          {/* Photo Upload & Evidence */}
           <div>
             <label className="block text-sm font-semibold text-[#0F1C2E] mb-2">Upload Evidence <span className="text-[#8BA3BC] font-normal">(optional)</span></label>
             <div
@@ -211,12 +256,21 @@ export default function ReportIssue({ navigate }: Props) {
               </p>
               <p className="text-xs text-[#8BA3BC]">PNG, JPG up to 10MB · Multiple files allowed</p>
             </div>
+
             {uploadedFiles.length > 0 && (
               <div className="flex gap-2 mt-3 flex-wrap">
                 {uploadedFiles.map((f) => (
-                  <div key={f} className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs text-green-700">
-                    <svg className="w-3 h-3" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                    {f}
+                  <div key={f} className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs text-green-700 font-medium">
+                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                    <span>{f}</span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleRemoveFile(f, e)}
+                      className="ml-1 text-red-500 hover:text-red-700 font-bold p-0.5 rounded"
+                      title="Remove file"
+                    >
+                      ✕
+                    </button>
                   </div>
                 ))}
               </div>

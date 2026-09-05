@@ -1,10 +1,15 @@
 import { useState, useEffect } from 'react';
 import type { Page } from '../types';
+import type { User, ReportData } from '../App';
 import Navbar from '../components/Navbar';
 import PriorityBadge, { PriorityIndicator } from '../components/PriorityBadge';
 
 interface Props {
-  navigate: (page: Page) => void;
+  navigate: (page: Page, opts?: { reportData?: ReportData }) => void;
+  user?: User | null;
+  onOpenAuth?: (targetPage?: Page) => void;
+  onLogout?: () => void;
+  reportData?: ReportData | null;
 }
 
 const analysisSteps = [
@@ -16,9 +21,19 @@ const analysisSteps = [
   'Preparing your complaint',
 ];
 
-export default function AIAnalysisPage({ navigate }: Props) {
+export default function AIAnalysisPage({
+  navigate,
+  user,
+  onOpenAuth,
+  onLogout,
+  reportData,
+}: Props) {
   const [phase, setPhase] = useState<'loading' | 'result'>('loading');
   const [completedSteps, setCompletedSteps] = useState<number[]>([]);
+
+  const desc = reportData?.description || 'Garbage accumulation near college campus causing severe odor and public risk.';
+  const loc = reportData?.location || 'Block B, XYZ Road';
+  const fileCount = reportData?.uploadedFiles?.length ?? 2;
 
   useEffect(() => {
     let step = 0;
@@ -27,16 +42,22 @@ export default function AIAnalysisPage({ navigate }: Props) {
       step++;
       if (step >= analysisSteps.length) {
         clearInterval(interval);
-        setTimeout(() => setPhase('result'), 600);
+        setTimeout(() => setPhase('result'), 400);
       }
-    }, 450);
+    }, 350);
     return () => clearInterval(interval);
   }, []);
 
   if (phase === 'loading') {
     return (
       <div className="min-h-screen bg-[#F0F4F8]">
-        <Navbar navigate={navigate} currentPage="report" />
+        <Navbar
+          navigate={navigate}
+          currentPage="report"
+          user={user}
+          onOpenAuth={onOpenAuth}
+          onLogout={onLogout}
+        />
         <div className="max-w-xl mx-auto px-4 py-16 flex flex-col items-center">
           <div className="relative mb-8">
             <div className="w-20 h-20 rounded-full border-4 border-[#EBF0F8] border-t-[#1B3A6B] animate-spin" />
@@ -82,7 +103,13 @@ export default function AIAnalysisPage({ navigate }: Props) {
 
   return (
     <div className="min-h-screen bg-[#F0F4F8]">
-      <Navbar navigate={navigate} currentPage="report" />
+      <Navbar
+        navigate={navigate}
+        currentPage="report"
+        user={user}
+        onOpenAuth={onOpenAuth}
+        onLogout={onLogout}
+      />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 animate-fadeInUp">
         <div className="flex items-center gap-3 mb-6">
           <div className="w-8 h-8 rounded-full bg-green-100 flex items-center justify-center">
@@ -100,19 +127,19 @@ export default function AIAnalysisPage({ navigate }: Props) {
           {/* Main analysis card */}
           <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
             <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#D1DCE8]">
-              <span className="font-mono text-xs text-[#5A7090]">Analysis · CL-10482</span>
+              <span className="font-mono text-xs text-[#5A7090]">Analysis · Draft</span>
               <PriorityBadge priority="HIGH" size="md" />
             </div>
             <div className="space-y-3.5">
               {[
-                { label: 'Issue', value: 'Garbage accumulation', large: true },
+                { label: 'Issue', value: desc.length > 35 ? desc.substring(0, 35) + '...' : desc, large: true },
                 { label: 'Category', value: 'Sanitation' },
                 { label: 'Severity', value: 'High' },
-                { label: 'Duration', value: '5 days' },
-                { label: 'Location', value: 'Block B, XYZ Road' },
+                { label: 'Duration', value: 'Recent' },
+                { label: 'Location', value: loc },
                 { label: 'Department', value: 'Municipal Sanitation Department' },
                 { label: 'Safety Risk', value: 'Moderate' },
-                { label: 'Evidence', value: '✓ Photo detected' },
+                { label: 'Evidence', value: fileCount > 0 ? `✓ ${fileCount} photo(s) detected` : 'No photos attached' },
               ].map((row) => (
                 <div key={row.label} className="flex justify-between items-start gap-4">
                   <span className="text-xs text-[#5A7090] font-medium shrink-0 w-24">{row.label}</span>
@@ -130,14 +157,14 @@ export default function AIAnalysisPage({ navigate }: Props) {
             <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
               <h3 className="font-display font-semibold text-[#0F1C2E] text-sm mb-3">Why is this marked High Priority?</h3>
               <blockquote className="text-sm text-[#3A4F6A] leading-relaxed bg-[#F0F4F8] rounded-xl p-3 border-l-2 border-[#1B3A6B] mb-4">
-                "The waste has remained uncollected for five days in a public area, which may create hygiene and public-health risks."
+                "{desc}"
               </blockquote>
               <div className="space-y-2 mb-4">
                 {[
-                  { label: 'Duration', value: '5 days' },
+                  { label: 'Location Area', value: loc },
                   { label: 'Public Area', value: 'Yes' },
                   { label: 'Health Risk', value: 'Moderate' },
-                  { label: 'Evidence', value: 'Photo provided' },
+                  { label: 'Evidence Attached', value: `${fileCount} photo(s)` },
                 ].map((f) => (
                   <div key={f.label} className="flex justify-between text-xs">
                     <span className="text-[#5A7090]">{f.label}</span>
@@ -155,9 +182,9 @@ export default function AIAnalysisPage({ navigate }: Props) {
                 <div className="absolute inset-0 bg-gradient-to-br from-gray-200 to-gray-300 flex items-center justify-center">
                   <span className="text-4xl opacity-50">🗑️</span>
                 </div>
-                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded font-mono">Overflowing waste</div>
-                <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded font-mono">Public area</div>
-                <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-0.5 rounded font-mono">Uncollected garbage</div>
+                <div className="absolute top-2 left-2 bg-red-500 text-white text-xs px-2 py-0.5 rounded font-mono">Civic hazard</div>
+                <div className="absolute bottom-2 left-2 bg-orange-500 text-white text-xs px-2 py-0.5 rounded font-mono">{loc}</div>
+                <div className="absolute top-2 right-2 bg-yellow-500 text-white text-xs px-2 py-0.5 rounded font-mono">Uncollected waste</div>
               </div>
               <div className="flex items-center justify-between text-xs">
                 <span className="text-[#5A7090]">Evidence confidence</span>
@@ -181,7 +208,17 @@ export default function AIAnalysisPage({ navigate }: Props) {
             ← Edit Report
           </button>
           <button
-            onClick={() => navigate('generated-complaint')}
+            onClick={() =>
+              navigate('generated-complaint', {
+                reportData: {
+                  inputMode: reportData?.inputMode || 'text',
+                  description: desc,
+                  language: reportData?.language || 'English',
+                  location: loc,
+                  uploadedFiles: reportData?.uploadedFiles || [],
+                },
+              })
+            }
             className="flex-1 bg-[#1B3A6B] text-white font-semibold py-3 rounded-xl hover:bg-[#142E57] transition-colors text-sm shadow-sm"
           >
             Generate Complaint →

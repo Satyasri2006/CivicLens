@@ -1,29 +1,73 @@
-import type { Page } from '../types';
+import type { Page, Complaint } from '../types';
+import type { User } from '../App';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
 import PriorityBadge from '../components/PriorityBadge';
-import { complaints } from '../data/mockData';
 
 interface Props {
-  navigate: (page: Page) => void;
+  navigate: (page: Page, opts?: { complaintId?: string }) => void;
+  user?: User | null;
+  onOpenAuth?: (targetPage?: Page) => void;
+  onLogout?: () => void;
   complaintId?: string;
+  complaints?: Complaint[];
 }
 
-const timelineEvents = [
-  { label: 'Complaint Created', time: '2 Sep 2026, 10:32 AM', done: true, desc: 'Citizen submitted report via CivicLens.' },
-  { label: 'AI Analysis Completed', time: '2 Sep 2026, 10:33 AM', done: true, desc: 'Issue classified as Sanitation · HIGH priority.' },
-  { label: 'Submitted to Department', time: '2 Sep 2026, 10:34 AM', done: true, desc: 'Forwarded to Municipal Sanitation Department.' },
-  { label: 'Department Review', time: 'Pending', done: false, active: true, desc: 'Awaiting review by sanitation supervisor.' },
-  { label: 'Field Action', time: '', done: false, desc: 'Field team dispatch and on-site inspection.' },
-  { label: 'Resolved', time: '', done: false, desc: 'Issue resolved and case closed.' },
-];
+export default function CaseTracking({
+  navigate,
+  user,
+  onOpenAuth,
+  onLogout,
+  complaintId = 'CL-10482',
+  complaints = [],
+}: Props) {
+  const complaint = complaints.find((c) => c.id === complaintId) || complaints[0] || {
+    id: complaintId,
+    issue: 'Garbage accumulation',
+    category: 'Sanitation',
+    department: 'Municipal Sanitation Department',
+    priority: 'HIGH',
+    location: 'Block B, XYZ Road',
+    status: 'Submitted',
+    date: 'Today',
+    description: 'Civic complaint submitted via CivicLens AI.',
+  };
 
-export default function CaseTracking({ navigate, complaintId = 'CL-10482' }: Props) {
-  const complaint = complaints.find((c) => c.id === complaintId) ?? complaints[0];
+  const timelineEvents = [
+    { label: 'Complaint Created', time: `${complaint.date}, 10:32 AM`, done: true, desc: 'Citizen submitted report via CivicLens.' },
+    { label: 'AI Analysis Completed', time: `${complaint.date}, 10:33 AM`, done: true, desc: `Issue classified as ${complaint.category} · ${complaint.priority} priority.` },
+    { label: 'Submitted to Department', time: `${complaint.date}, 10:34 AM`, done: true, desc: `Forwarded to ${complaint.department}.` },
+    {
+      label: 'Department Review',
+      time: complaint.status !== 'Submitted' ? 'Completed' : 'In Progress',
+      done: complaint.status !== 'Submitted',
+      active: complaint.status === 'Submitted',
+      desc: 'Reviewing by department supervisor.',
+    },
+    {
+      label: 'Field Action',
+      time: complaint.status === 'In Progress' || complaint.status === 'Resolved' ? 'Active' : 'Pending',
+      done: complaint.status === 'Resolved',
+      active: complaint.status === 'In Progress',
+      desc: 'Field team dispatch and on-site inspection.',
+    },
+    {
+      label: 'Resolved',
+      time: complaint.status === 'Resolved' ? 'Closed' : '',
+      done: complaint.status === 'Resolved',
+      desc: 'Issue resolved and case closed.',
+    },
+  ];
 
   return (
     <div className="min-h-screen bg-[#F0F4F8]">
-      <Navbar navigate={navigate} currentPage="dashboard" />
+      <Navbar
+        navigate={navigate}
+        currentPage="dashboard"
+        user={user}
+        onOpenAuth={onOpenAuth}
+        onLogout={onLogout}
+      />
       <div className="max-w-3xl mx-auto px-4 sm:px-6 py-8 animate-fadeInUp">
         {/* Header */}
         <div className="flex items-center gap-3 mb-6">
@@ -57,7 +101,7 @@ export default function CaseTracking({ navigate, complaintId = 'CL-10482' }: Pro
                     <div className={`w-5 h-5 rounded-full border-2 flex items-center justify-center shrink-0 mt-0.5 ${
                       event.done
                         ? 'bg-green-500 border-green-500'
-                        : (event as any).active
+                        : event.active
                         ? 'bg-white border-[#1B3A6B]'
                         : 'bg-white border-[#D1DCE8]'
                     }`}>
@@ -65,7 +109,7 @@ export default function CaseTracking({ navigate, complaintId = 'CL-10482' }: Pro
                         <svg className="w-2.5 h-2.5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                           <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
                         </svg>
-                      ) : (event as any).active ? (
+                      ) : event.active ? (
                         <div className="w-2 h-2 rounded-full bg-[#1B3A6B] animate-pulse" />
                       ) : null}
                     </div>
@@ -76,14 +120,14 @@ export default function CaseTracking({ navigate, complaintId = 'CL-10482' }: Pro
                   {/* Content */}
                   <div className="pb-8 flex-1">
                     <div className="flex items-center justify-between mb-0.5">
-                      <span className={`text-sm font-medium ${event.done ? 'text-[#0F1C2E]' : (event as any).active ? 'text-[#1B3A6B]' : 'text-[#8BA3BC]'}`}>
+                      <span className={`text-sm font-medium ${event.done ? 'text-[#0F1C2E]' : event.active ? 'text-[#1B3A6B]' : 'text-[#8BA3BC]'}`}>
                         {event.label}
                       </span>
                       {event.time && (
                         <span className="font-mono text-xs text-[#8BA3BC]">{event.time}</span>
                       )}
                     </div>
-                    <p className={`text-xs leading-relaxed ${event.done ? 'text-[#5A7090]' : (event as any).active ? 'text-[#3A4F6A]' : 'text-[#C0CDD9]'}`}>
+                    <p className={`text-xs leading-relaxed ${event.done ? 'text-[#5A7090]' : event.active ? 'text-[#3A4F6A]' : 'text-[#C0CDD9]'}`}>
                       {event.desc}
                     </p>
                   </div>
@@ -105,11 +149,11 @@ export default function CaseTracking({ navigate, complaintId = 'CL-10482' }: Pro
                   { label: 'Location', value: complaint.location },
                   { label: 'Duration', value: complaint.duration ?? 'N/A' },
                   { label: 'Safety Risk', value: complaint.safetyRisk ?? 'N/A' },
-                  { label: 'Evidence', value: `${complaint.evidence ?? 0} photo(s)` },
+                  { label: 'Evidence', value: `${complaint.evidence ?? 1} photo(s)` },
                 ].map((row) => (
                   <div key={row.label} className="flex justify-between gap-3">
                     <span className="text-[#8BA3BC] font-medium shrink-0">{row.label}</span>
-                    <span className={`text-[#0F1C2E] text-right ${row.mono ? 'font-mono' : ''}`}>{row.value}</span>
+                    <span className={`text-[#0F1C2E] text-right truncate max-w-[140px] ${row.mono ? 'font-mono' : ''}`}>{row.value}</span>
                   </div>
                 ))}
               </div>
