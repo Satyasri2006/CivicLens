@@ -1,0 +1,111 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap');
+@import 'tailwindcss';
+
+@theme {
+  --color-primary: #1B3A6B;
+  --color-primary-dark: #0F2442;
+  --color-primary-light: #2A52A0;
+  --color-accent: #2563EB;
+  --color-accent-light: #3B82F6;
+  --color-background: #F0F4F8;
+  --color-surface: #FFFFFF;
+  --color-card: #FFFFFF;
+  --color-border: #D1DCE8;
+  --color-text: #0F1C2E;
+  --color-muted: #5A7090;
+  --color-subtle: #8BA3BC;
+  --color-success: #16A34A;
+  --color-warning: #D97706;
+  --color-danger: #DC2626;
+  --color-urgent: #9333EA;
+  --color-navy-50: #EEF3FA;
+  --color-navy-100: #D8E4F5;
+  --color-navy-200: #B1C8EB;
+  --color-navy-600: #1B3A6B;
+  --color-navy-700: #142E57;
+  --color-navy-800: #0F2240;
+  --color-navy-900: #091828;
+
+  --font-display: 'Outfit', sans-serif;
+  --font-body: 'Inter', sans-serif;
+  --font-mono: 'JetBrains Mono', monospace;
+
+  --radius-sm: 0.375rem;
+  --radius-md: 0.625rem;
+  --radius-lg: 0.875rem;
+  --radius-xl: 1.25rem;
+  --radius-2xl: 1.75rem;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-color: #F0F4F8;
+  color: #0F1C2E;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+* {
+  scrollbar-width: none;
+}
+*::-webkit-scrollbar {
+  display: none;
+}
+
+.font-display {
+  font-family: 'Outfit', sans-serif;
+}
+
+.font-mono {
+  font-family: 'JetBrains Mono', monospace;
+}
+
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(12px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes pulse-ring {
+  0% { transform: scale(0.8); opacity: 1; }
+  100% { transform: scale(2); opacity: 0; }
+}
+
+@keyframes checkmark {
+  from { stroke-dashoffset: 24; }
+  to { stroke-dashoffset: 0; }
+}
+
+@keyframes spin-slow {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.animate-fadeInUp {
+  animation: fadeInUp 0.4s ease forwards;
+}
+
+.animate-fadeIn {
+  animation: fadeIn 0.3s ease forwards;
+}
+
+.animate-spin-slow {
+  animation: spin-slow 2s linear infinite;
+}
+
+.step-delay-1 { animation-delay: 0.1s; }
+.step-delay-2 { animation-delay: 0.2s; }
+.step-delay-3 { animation-delay: 0.35s; }
+.step-delay-4 { animation-delay: 0.5s; }
