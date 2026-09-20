@@ -161,14 +161,16 @@ export default function Navbar({
               >
                 History
               </button>
-              <button
-                onClick={() => navigate('admin')}
-                className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-colors ${
-                  currentPage === 'admin' ? 'bg-[#EBF0F8] text-[#1B3A6B]' : 'text-[#5A7090] hover:text-[#1B3A6B] hover:bg-[#F0F4F8]'
-                }`}
-              >
-                Admin
-              </button>
+              {user?.role === 'admin' && (
+                <button
+                  onClick={() => navigate('admin')}
+                  className={`text-sm px-3 py-1.5 rounded-lg font-medium transition-colors ${
+                    currentPage === 'admin' ? 'bg-[#EBF0F8] text-[#1B3A6B]' : 'text-[#5A7090] hover:text-[#1B3A6B] hover:bg-[#F0F4F8]'
+                  }`}
+                >
+                  Admin Portal
+                </button>
+              )}
 
               <button
                 onClick={() => navigate('report')}
@@ -266,9 +268,11 @@ export default function Navbar({
                 <button onClick={() => { setMobileMenuOpen(false); navigate('complaint-history'); }} className="text-left py-2 text-sm font-medium">
                   Complaint History
                 </button>
-                <button onClick={() => { setMobileMenuOpen(false); navigate('admin'); }} className="text-left py-2 text-sm font-medium">
-                  Admin Panel
-                </button>
+                {user?.role === 'admin' && (
+                  <button onClick={() => { setMobileMenuOpen(false); navigate('admin'); }} className="text-left py-2 text-sm font-medium text-[#1B3A6B]">
+                    Admin Portal
+                  </button>
+                )}
                 {user ? (
                   <button onClick={() => { setMobileMenuOpen(false); onLogout?.(); }} className="text-left py-2 text-sm font-medium text-red-600">
                     Sign Out ({user.name})

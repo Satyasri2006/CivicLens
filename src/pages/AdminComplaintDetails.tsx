@@ -137,6 +137,52 @@ export default function AdminComplaintDetails({
     setNoteText('');
   };
 
+  const handleExportDocket = () => {
+    if (!complaint) return;
+    const content = `CIVICLENS COMPLAINT DOSSIER
+======================================================
+Case ID: ${complaint.id}
+Issue: ${complaint.issue}
+Category: ${complaint.category}
+Priority: ${priority}
+Status: ${status}
+Department: ${department}
+Location: ${complaint.location}
+Date Filed: ${complaint.date}
+Severity: ${complaint.severity || 'N/A'}
+Impact: ${complaint.impact || 'N/A'}
+Safety Risk: ${complaint.safetyRisk || 'N/A'}
+
+CITIZEN STATEMENT:
+------------------------------------------------------
+${complaint.citizenStatement || complaint.description || 'N/A'}
+
+AI ANALYSIS & JUSTIFICATION:
+------------------------------------------------------
+${complaint.aiJustification || 'Classified via CivicLens Multimodal AI.'}
+
+EVIDENCE:
+------------------------------------------------------
+Image attachments: ${complaint.image ? '1 attached' : 'None'}
+
+TIMELINE / LOGS:
+------------------------------------------------------
+${activityTimeline.map((t) => `[${t.time}] ${t.actor}: ${t.action}`).join('\n')}
+
+Generated on: ${new Date().toISOString()}
+======================================================`;
+
+    const blob = new Blob([content], { type: 'text/plain;charset=utf-8' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.setAttribute('download', `CivicLens-Dossier-${complaint.id}.txt`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+    URL.revokeObjectURL(url);
+  };
+
   if (!complaint) {
     return (
       <div className="flex min-h-screen bg-[#F0F4F8]">
@@ -192,6 +238,16 @@ export default function AdminComplaintDetails({
             {saved && (
               <span className="text-xs text-green-600 font-medium animate-fadeIn">Changes saved ✓</span>
             )}
+            <button
+              onClick={handleExportDocket}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 bg-blue-50 hover:bg-blue-100 text-[#1B3A6B] border border-blue-200 rounded-lg text-xs font-semibold transition-colors"
+              title="Download formal complaint dossier"
+            >
+              <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4" />
+              </svg>
+              Export Docket
+            </button>
             <PriorityBadge priority={priority} size="md" />
             <StatusBadge status={status} size="md" />
           </div>

@@ -19,6 +19,18 @@ export const verifyToken = async (req, res, next) => {
   }
 };
 
+export const optionalToken = async (req, res, next) => {
+  try {
+    const authHeader = req.headers.authorization;
+    if (authHeader && authHeader.startsWith('Bearer ')) {
+      const token = authHeader.split(' ')[1];
+      const secret = process.env.JWT_SECRET || 'civiclens_super_secret_jwt_key_2026_hackathon';
+      req.user = jwt.verify(token, secret);
+    }
+  } catch {}
+  next();
+};
+
 export const requireAdmin = (req, res, next) => {
   if (!req.user || req.user.role !== 'admin') {
     return res.status(403).json({ message: 'Access denied. Administrator rights required.' });

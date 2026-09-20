@@ -7,20 +7,29 @@ let memoryComplaints = [];
 
 export const analyzeComplaint = async (req, res) => {
   try {
-    const { description, language = 'English', location = 'Block B, XYZ Road' } = req.body;
+    const { description, language = 'English', location = 'City Municipal Area' } = req.body;
 
     if (!description || !description.trim()) {
       return res.status(400).json({ message: 'Complaint description is required.' });
     }
 
-    // 1. Send description to Gemini for structured JSON classification
-    const aiResult = await analyzeComplaintWithGemini(description, language);
+    // Collect any uploaded image files or base64 evidence strings
+    const images = [];
+    if (req.files && req.files.length > 0) {
+      images.push(...req.files);
+    }
+    if (req.body.images && Array.isArray(req.body.images)) {
+      images.push(...req.body.images);
+    }
 
-    // 2. Apply controlled application rules for official department routing
-    const officialDepartment = determineDepartment(aiResult.category, aiResult.issueType, description);
+    // 1. Send description + images to Gemini 3.6 Flash for multimodal analysis
+    const aiResult = await analyzeComplaintWithGemini(description, language, images);
+
+    // 2. Determine department from AI result or routing rules
+    const officialDepartment = aiResult.department || determineDepartment(aiResult.category, aiResult.issueType, description);
 
     // 3. Apply deterministic priority rules
-    const calculatedPriority = calculatePriority(aiResult.severity, aiResult.safetyRisk, aiResult.duration, description);
+    const calculatedPriority = aiResult.priority || calculatePriority(aiResult.severity, aiResult.safetyRisk, aiResult.duration, description);
 
     return res.json({
       category: aiResult.category,

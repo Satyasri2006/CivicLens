@@ -16,11 +16,13 @@ export default function AuthModal({
   initialMode = 'login',
   intendedAction,
 }: Props) {
+  const [role, setRole] = useState<'citizen' | 'admin'>('citizen');
   const [mode, setMode] = useState<'login' | 'signup'>(initialMode);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [name, setName] = useState('');
   const [phone, setPhone] = useState('');
+  const [adminDept, setAdminDept] = useState('Municipal Administration');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
@@ -33,7 +35,7 @@ export default function AuthModal({
       return;
     }
     if (mode === 'signup' && !name.trim()) {
-      setError('Please enter your full name.');
+      setError(role === 'admin' ? 'Please enter your official name.' : 'Please enter your full name.');
       return;
     }
 
@@ -42,10 +44,20 @@ export default function AuthModal({
 
     try {
       if (mode === 'signup') {
-        const res = await api.auth.register({ name, email, password });
+        const res = await api.auth.register({
+          name: role === 'admin' ? `${name.trim()} (${adminDept})` : name.trim(),
+          email: email.trim().toLowerCase(),
+          password,
+          role,
+        });
         onLoginSuccess(res.user);
       } else {
-        const res = await api.auth.login({ email, password });
+        const res = await api.auth.login({ email: email.trim().toLowerCase(), password });
+        if (role === 'admin' && res.user.role !== 'admin') {
+          setError('This account does not have City Administrator privileges. Please sign in as Civilian or register an Admin account.');
+          setLoading(false);
+          return;
+        }
         onLoginSuccess(res.user);
       }
     } catch (err: any) {
@@ -55,10 +67,11 @@ export default function AuthModal({
     }
   };
 
-  const handleQuickDemoLogin = async (role: 'citizen' | 'admin') => {
+  const handleQuickDemoLogin = async (targetRole: 'citizen' | 'admin') => {
+    setRole(targetRole);
     setLoading(true);
     setError('');
-    const demoEmail = role === 'admin' ? 'admin@civiclens.gov.in' : 'ananya@citizen.org';
+    const demoEmail = targetRole === 'admin' ? 'admin@civiclens.gov.in' : 'ananya@citizen.org';
     const demoPassword = 'password';
 
     try {
@@ -67,10 +80,10 @@ export default function AuthModal({
     } catch (err: any) {
       // Fallback local state if server fails
       onLoginSuccess({
-        id: role === 'admin' ? 'demo_admin' : 'demo_citizen',
-        name: role === 'admin' ? 'Ravi Kumar' : 'Ananya Sharma',
+        id: targetRole === 'admin' ? 'demo_admin' : 'demo_citizen',
+        name: targetRole === 'admin' ? 'Ravi Kumar' : 'Ananya Sharma',
         email: demoEmail,
-        role,
+        role: targetRole,
       });
     } finally {
       setLoading(false);
@@ -100,20 +113,47 @@ export default function AuthModal({
             </svg>
           </div>
           <h3 className="font-display font-bold text-xl">
-            {mode === 'login' ? 'Welcome Back to CivicLens' : 'Create CivicLens Account'}
+            {role === 'admin' ? 'CivicLens Admin Portal' : 'CivicLens Civilian Portal'}
           </h3>
           <p className="text-white/70 text-xs mt-1">
-            {intendedAction
-              ? intendedAction
-              : mode === 'login'
-              ? 'Sign in to report civic issues and track resolutions.'
-              : 'Join CivicLens to report and track civic complaints in your city.'}
+            {role === 'admin'
+              ? (mode === 'login' ? 'Sign in to access City Operations & Department Dispatch.' : 'Register as an authorized City Administrator.')
+              : (mode === 'login' ? 'Sign in to report civic issues and track resolutions.' : 'Join CivicLens to report civic complaints in your city.')}
           </p>
         </div>
 
         {/* Form Body */}
         <div className="p-6 space-y-4">
-          {/* Mode Switcher */}
+          {/* 1. First Ask: Select User Type */}
+          <div>
+            <label className="block text-[11px] font-bold text-[#5A7090] uppercase tracking-wider mb-1.5">
+              Select User Type
+            </label>
+            <div className="grid grid-cols-2 gap-2 p-1 bg-[#F0F4F8] rounded-xl border border-[#D1DCE8]">
+              <button
+                type="button"
+                onClick={() => { setRole('citizen'); setError(''); }}
+                className={`py-2 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  role === 'citizen' ? 'bg-[#1B3A6B] text-white shadow-sm' : 'text-[#5A7090] hover:text-[#1B3A6B]'
+                }`}
+              >
+                <span>👤</span>
+                Civilian
+              </button>
+              <button
+                type="button"
+                onClick={() => { setRole('admin'); setError(''); }}
+                className={`py-2 px-3 text-xs font-bold rounded-lg transition-all flex items-center justify-center gap-1.5 ${
+                  role === 'admin' ? 'bg-[#1B3A6B] text-white shadow-sm' : 'text-[#5A7090] hover:text-[#1B3A6B]'
+                }`}
+              >
+                <span>🏛️</span>
+                City Admin
+              </button>
+            </div>
+          </div>
+
+          {/* 2. Second: Mode Switcher (Sign In vs Register for chosen user type) */}
           <div className="flex bg-[#F0F4F8] p-1 rounded-xl">
             <button
               type="button"
@@ -122,7 +162,7 @@ export default function AuthModal({
                 mode === 'login' ? 'bg-white text-[#1B3A6B] shadow-sm' : 'text-[#5A7090] hover:text-[#1B3A6B]'
               }`}
             >
-              Sign In
+              {role === 'admin' ? 'Admin Sign In' : 'Civilian Sign In'}
             </button>
             <button
               type="button"
@@ -131,7 +171,7 @@ export default function AuthModal({
                 mode === 'signup' ? 'bg-white text-[#1B3A6B] shadow-sm' : 'text-[#5A7090] hover:text-[#1B3A6B]'
               }`}
             >
-              Register
+              {role === 'admin' ? 'Register Admin' : 'Register Civilian'}
             </button>
           </div>
 
@@ -147,29 +187,51 @@ export default function AuthModal({
           <form onSubmit={handleSubmit} className="space-y-3">
             {mode === 'signup' && (
               <div>
-                <label className="block text-xs font-semibold text-[#0F1C2E] mb-1">Full Name</label>
+                <label className="block text-xs font-semibold text-[#0F1C2E] mb-1">
+                  {role === 'admin' ? 'Official / Officer Name' : 'Full Name'}
+                </label>
                 <input
                   type="text"
                   value={name}
                   onChange={(e) => setName(e.target.value)}
-                  placeholder="e.g. Ananya Sharma"
+                  placeholder={role === 'admin' ? 'e.g. Officer Ramesh Rao' : 'e.g. Ananya Sharma'}
                   className="w-full border border-[#D1DCE8] rounded-xl px-3.5 py-2 text-sm text-[#0F1C2E] focus:outline-none focus:border-[#2563EB]"
                 />
               </div>
             )}
 
+            {mode === 'signup' && role === 'admin' && (
+              <div>
+                <label className="block text-xs font-semibold text-[#0F1C2E] mb-1">Government Department / Agency</label>
+                <select
+                  value={adminDept}
+                  onChange={(e) => setAdminDept(e.target.value)}
+                  className="w-full border border-[#D1DCE8] rounded-xl px-3 py-2 text-sm text-[#0F1C2E] focus:outline-none focus:border-[#2563EB] bg-white"
+                >
+                  <option value="Municipal Administration">Municipal Administration (City-wide)</option>
+                  <option value="Public Works Department">Public Works Department (Roads & Bridges)</option>
+                  <option value="City Electricity Board">City Electricity Board (Power & Lighting)</option>
+                  <option value="Water Supply & Sewerage">Water Supply & Sewerage Board</option>
+                  <option value="Municipal Sanitation">Municipal Sanitation & Solid Waste</option>
+                  <option value="Traffic & Public Safety">Traffic & Public Safety Department</option>
+                </select>
+              </div>
+            )}
+
             <div>
-              <label className="block text-xs font-semibold text-[#0F1C2E] mb-1">Email Address</label>
+              <label className="block text-xs font-semibold text-[#0F1C2E] mb-1">
+                {role === 'admin' ? 'Official Email Address' : 'Email Address'}
+              </label>
               <input
                 type="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
-                placeholder="citizen@example.com"
+                placeholder={role === 'admin' ? 'officer@civiclens.gov.in' : 'citizen@example.com'}
                 className="w-full border border-[#D1DCE8] rounded-xl px-3.5 py-2 text-sm text-[#0F1C2E] focus:outline-none focus:border-[#2563EB]"
               />
             </div>
 
-            {mode === 'signup' && (
+            {mode === 'signup' && role === 'citizen' && (
               <div>
                 <label className="block text-xs font-semibold text-[#0F1C2E] mb-1">Phone Number <span className="text-[#8BA3BC] font-normal">(optional)</span></label>
                 <input
@@ -201,9 +263,9 @@ export default function AuthModal({
               {loading ? (
                 <div className="w-4 h-4 rounded-full border-2 border-white border-t-transparent animate-spin" />
               ) : mode === 'login' ? (
-                'Sign In →'
+                role === 'admin' ? 'Sign In to Admin Portal →' : 'Sign In to Civilian Portal →'
               ) : (
-                'Create Account →'
+                role === 'admin' ? 'Register City Admin →' : 'Create Civilian Account →'
               )}
             </button>
           </form>

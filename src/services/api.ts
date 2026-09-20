@@ -116,46 +116,66 @@ const fileToBase64 = (file: File): Promise<string> => {
 
 const clientSideAnalyze = (description: string, location?: string) => {
   const text = (description || '').toLowerCase();
-  let category: Category = 'Sanitation';
-  let issueType = 'Garbage accumulation';
-  let severity = 'High';
-  let priority: Priority = 'HIGH';
-  let department = 'Municipal Sanitation Department';
-  let duration = '5 days';
+  let category: Category = 'Infrastructure';
+  let issueType = 'Civic Infrastructure Grievance';
+  let severity = 'Medium';
+  let priority: Priority = 'MEDIUM';
+  let department = 'Public Works Department';
+  let duration = 'Recent';
   let safetyRisk = 'Moderate';
 
-  if (text.includes('pothole') || text.includes('road') || text.includes('traffic') || text.includes('asphalt')) {
+  if (text.includes('pothole') || text.includes('road') || text.includes('crater') || text.includes('asphalt') || text.includes('tar') || text.includes('speed breaker')) {
     category = 'Roads';
-    issueType = 'Pothole on road';
-    department = 'Public Works Department';
+    issueType = 'Pothole and Road Damage';
+    department = 'Public Works Department (Roads)';
     severity = 'High';
     priority = 'HIGH';
-  } else if (text.includes('light') || text.includes('street light') || text.includes('power') || text.includes('wire') || text.includes('dark')) {
+    safetyRisk = 'High';
+    duration = '1 week';
+  } else if (text.includes('light') || text.includes('street light') || text.includes('lamp') || text.includes('dark') || text.includes('power') || text.includes('wire') || text.includes('electric')) {
     category = 'Electricity';
-    issueType = 'Broken streetlight';
-    department = 'City Electricity Board';
+    issueType = 'Broken Streetlight / Power Issue';
+    department = 'City Electricity & Lighting Board';
     severity = 'Medium';
     priority = 'MEDIUM';
-    duration = '2 weeks';
-  } else if (text.includes('water') || text.includes('leak') || text.includes('pipe') || text.includes('burst')) {
+    duration = '4 days';
+  } else if (text.includes('water') || text.includes('leak') || text.includes('pipe') || text.includes('burst') || text.includes('tap') || text.includes('contamination')) {
     category = 'Water';
-    issueType = 'Water pipeline leakage';
-    department = 'Water Supply Board';
+    issueType = 'Water Pipeline Leakage / Contamination';
+    department = 'Water Supply and Sewerage Board';
     severity = 'Critical';
     priority = 'URGENT';
     safetyRisk = 'High';
-  } else if (text.includes('drain') || text.includes('sewage') || text.includes('gutter') || text.includes('overflow')) {
+    duration = '2 days';
+  } else if (text.includes('drain') || text.includes('sewage') || text.includes('gutter') || text.includes('overflow') || text.includes('manhole') || text.includes('sewer')) {
     category = 'Drainage';
-    issueType = 'Drainage overflow';
+    issueType = text.includes('manhole') ? 'Hazardous Open Manhole' : 'Drainage and Sewage Overflow';
     department = 'Drainage & Sewage Department';
+    severity = 'Critical';
+    priority = 'URGENT';
+    safetyRisk = 'High';
+    duration = '3 days';
+  } else if (text.includes('garbage') || text.includes('trash') || text.includes('dump') || text.includes('waste') || text.includes('bin') || text.includes('filth')) {
+    category = 'Sanitation';
+    issueType = 'Solid Waste & Garbage Accumulation';
+    department = 'Municipal Sanitation Department';
     severity = 'High';
     priority = 'HIGH';
-  } else if (text.includes('bench') || text.includes('park') || text.includes('tree') || text.includes('footpath')) {
-    category = 'Infrastructure';
-    issueType = 'Damaged public infrastructure';
-    department = 'Public Works Department';
-    severity = 'Low';
-    priority = 'LOW';
+    duration = '5 days';
+  } else if (text.includes('tree') || text.includes('branch') || text.includes('park') || text.includes('garden')) {
+    category = 'Environment';
+    issueType = 'Fallen Tree / Garden Maintenance';
+    department = 'Parks and Urban Forestry Department';
+    severity = 'High';
+    priority = 'HIGH';
+    duration = 'Recent';
+  } else if (text.includes('traffic') || text.includes('signal') || text.includes('crossing') || text.includes('barrier')) {
+    category = 'Public Safety';
+    issueType = 'Traffic Signal / Crossing Hazard';
+    department = 'Traffic & Public Safety Department';
+    severity = 'High';
+    priority = 'HIGH';
+    duration = 'Recent';
   }
 
   return {
@@ -165,11 +185,11 @@ const clientSideAnalyze = (description: string, location?: string) => {
     priority,
     department,
     duration,
-    location: typeof location === 'string' ? { address: location } : location || { address: 'Block B, XYZ Road' },
+    location: typeof location === 'string' ? { address: location } : location || { address: 'Local Civic Area' },
     safetyRisk,
     requiredEvidence: ['Photo', 'Location'],
-    summary: `Civic report regarding ${issueType.toLowerCase()}: "${description}"`,
-    justification: `Automated assessment classified this as a ${category} issue assigned to ${department}.`,
+    summary: `Civic report for ${issueType.toLowerCase()}: "${description}"`,
+    justification: `AI classified this as a ${category} issue assigned to ${department} based on reported impact.`,
   };
 };
 

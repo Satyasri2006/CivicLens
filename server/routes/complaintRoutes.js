@@ -6,12 +6,12 @@ import {
   getComplaintByCaseId,
   updateComplaintStatus,
 } from '../controllers/complaintController.js';
-import { verifyToken, requireAdmin } from '../middleware/auth.js';
+import { verifyToken, requireAdmin, optionalToken } from '../middleware/auth.js';
 import upload from '../middleware/upload.js';
 
 const router = express.Router();
 
-router.post('/analyze', verifyToken, analyzeComplaint);
+router.post('/analyze', optionalToken, upload.array('evidence', 5), analyzeComplaint);
 router.post('/', verifyToken, upload.array('evidence', 5), createComplaint);
 router.get('/', verifyToken, getComplaints);
 router.get('/:caseId', verifyToken, getComplaintByCaseId);

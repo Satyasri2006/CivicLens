@@ -84,11 +84,25 @@ export default function App() {
     }
   };
 
+  const [accessDeniedMessage, setAccessDeniedMessage] = useState<string | null>(null);
+
   const navigate = (p: Page, opts?: { complaintId?: string; reportData?: ReportData }) => {
     // Protected route check for reporting an issue
     if (p === 'report' && !user) {
       setIntendedPage('report');
       setIsAuthModalOpen(true);
+      return;
+    }
+
+    // Access control: A civilian should not have access to admin dashboard
+    if ((p === 'admin' || p === 'admin-complaint-details') && user?.role !== 'admin') {
+      if (!user) {
+        setIntendedPage(p);
+        setIsAuthModalOpen(true);
+      } else {
+        setAccessDeniedMessage('Access Restricted: Civilian accounts cannot access the City Official Admin Portal.');
+        setTimeout(() => setAccessDeniedMessage(null), 4000);
+      }
       return;
     }
 
@@ -115,14 +129,12 @@ export default function App() {
     setIsAuthModalOpen(false);
     await fetchUserComplaints(loggedInUser);
 
-    if (intendedPage) {
-      setPage(intendedPage);
-      setIntendedPage(null);
-    } else if (loggedInUser.role === 'admin') {
-      setPage('admin');
+    if (loggedInUser.role === 'admin') {
+      setPage(intendedPage === 'admin-complaint-details' ? 'admin-complaint-details' : 'admin');
     } else {
-      setPage('dashboard');
+      setPage(intendedPage && intendedPage !== 'admin' && intendedPage !== 'admin-complaint-details' ? intendedPage : 'dashboard');
     }
+    setIntendedPage(null);
   };
 
   const handleNewComplaintSubmitted = (newComplaint: Complaint) => {
@@ -229,6 +241,17 @@ export default function App() {
           complaints={complaintList}
           setComplaints={setComplaintList}
         />
+      )}
+
+      {/* Access Denied Toast */}
+      {accessDeniedMessage && (
+        <div className="fixed top-5 right-5 z-50 bg-red-600 text-white px-5 py-3 rounded-xl shadow-xl flex items-center gap-3 animate-fadeInUp">
+          <svg className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+          </svg>
+          <span className="text-xs font-semibold">{accessDeniedMessage}</span>
+          <button onClick={() => setAccessDeniedMessage(null)} className="text-white/80 hover:text-white text-sm font-bold ml-2">✕</button>
+        </div>
       )}
 
       {/* Global Auth Modal */}
