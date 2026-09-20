@@ -25,34 +25,31 @@ export default function AdminComplaintDetails({
   user,
   onOpenAuth,
   onLogout,
-  complaintId = 'CL-10482',
+  complaintId,
   complaints,
   setComplaints,
 }: Props) {
-  const initialComplaint = complaints.find((c) => c.id === complaintId || (c as any).caseId === complaintId) || complaints[0] || {
-    id: complaintId,
-    issue: 'Garbage accumulation',
-    category: 'Sanitation',
-    department: 'Municipal Sanitation',
-    priority: 'HIGH',
-    location: 'Block B, XYZ Road',
-    status: 'Submitted',
-    date: '2 Sep 2026',
-    description: 'Garbage accumulation near college campus.',
-  };
+  const initialComplaint = complaintId
+    ? complaints.find((c) => c.id === complaintId || (c as any).caseId === complaintId)
+    : complaints[0];
 
-  const [complaint, setComplaint] = useState<Complaint>(() => formatComplaint(initialComplaint));
-  const [status, setStatus] = useState<Status>(complaint.status);
-  const [department, setDepartment] = useState<string>(complaint.department);
-  const [priority, setPriority] = useState<Priority>(complaint.priority);
+  const [complaint, setComplaint] = useState<Complaint | null>(() =>
+    initialComplaint ? formatComplaint(initialComplaint) : null
+  );
+  const [status, setStatus] = useState<Status>(complaint?.status || 'Submitted');
+  const [department, setDepartment] = useState<string>(complaint?.department || 'Municipal Administration');
+  const [priority, setPriority] = useState<Priority>(complaint?.priority || 'MEDIUM');
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
 
+  const activeId = complaintId || complaint?.id;
+
   useEffect(() => {
+    if (!activeId) return;
     async function loadFullDetails() {
       try {
-        const fetched = await api.complaints.getByCaseId(complaintId);
+        const fetched = await api.complaints.getByCaseId(activeId!);
         if (fetched) {
           const formatted = formatComplaint(fetched);
           setComplaint(formatted);
@@ -65,13 +62,20 @@ export default function AdminComplaintDetails({
       }
     }
     loadFullDetails();
-  }, [complaintId]);
+  }, [activeId]);
 
   const [noteText, setNoteText] = useState('');
-  const [activityTimeline, setActivityTimeline] = useState([
-    { time: '2 Sep 2026, 10:34 AM', actor: 'CivicLens AI', action: 'Complaint submitted and forwarded to department.' },
-    { time: '2 Sep 2026, 11:00 AM', actor: 'System', action: `Priority set to ${complaint.priority} based on AI analysis.` },
-    { time: '2 Sep 2026, 2:15 PM', actor: user?.name ? `Admin ${user.name}` : 'Admin Ravi Kumar', action: 'Complaint acknowledged. Field team assigned.' },
+  const [activityTimeline, setActivityTimeline] = useState(() => [
+    {
+      time: complaint ? `${complaint.date}` : 'Initial',
+      actor: 'CivicLens AI',
+      action: 'Complaint submitted and recorded in system.',
+    },
+    {
+      time: complaint ? `${complaint.date}` : 'Initial',
+      actor: 'System',
+      action: `Priority established as ${complaint?.priority || 'MEDIUM'} based on analysis.`,
+    },
   ]);
 
   const handleUpdateStatus = (newStatus: Status) => {
@@ -132,6 +136,35 @@ export default function AdminComplaintDetails({
     ]);
     setNoteText('');
   };
+
+  if (!complaint) {
+    return (
+      <div className="flex min-h-screen bg-[#F0F4F8]">
+        <AdminSidebar activeView="complaints" onViewChange={() => navigate('admin')} navigate={navigate} />
+        <main className="flex-1 flex items-center justify-center p-8">
+          <div className="bg-white rounded-2xl border border-[#D1DCE8] p-8 max-w-md w-full text-center shadow-sm">
+            <div className="w-12 h-12 rounded-full bg-blue-50 text-[#1B3A6B] mx-auto flex items-center justify-center mb-3">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+              </svg>
+            </div>
+            <h2 className="text-lg font-bold text-[#0F1C2E] mb-1 font-display">No Complaint Selected</h2>
+            <p className="text-sm text-[#5A7090] mb-5">
+              {complaintId
+                ? `Complaint with ID "${complaintId}" could not be found.`
+                : 'There are currently no complaints in the system.'}
+            </p>
+            <button
+              onClick={() => navigate('admin')}
+              className="px-5 py-2.5 bg-[#1B3A6B] text-white font-medium rounded-xl hover:bg-[#142E57] transition-colors text-sm shadow-sm"
+            >
+              Return to Admin Dashboard
+            </button>
+          </div>
+        </main>
+      </div>
+    );
+  }
 
   return (
     <div className="flex min-h-screen bg-[#F0F4F8]">

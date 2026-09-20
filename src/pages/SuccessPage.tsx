@@ -18,13 +18,13 @@ export default function SuccessPage({
   user,
   onOpenAuth,
   onLogout,
-  complaintId = 'CL-10482',
+  complaintId = '',
   complaint,
 }: Props) {
-  const displayIssue = complaint?.issue || 'Garbage accumulation';
-  const displayDept = complaint?.department || 'Municipal Sanitation';
-  const displayLoc = complaint?.location || 'Block B, XYZ Road';
-  const displayEvidence = complaint?.evidence ? `${complaint.evidence} photo(s)` : '1 photo';
+  const displayIssue = complaint?.issue || 'Civic Issue';
+  const displayDept = complaint?.department || 'Municipal Administration';
+  const displayLoc = complaint?.location || 'Location Not Specified';
+  const displayEvidence = complaint?.evidence ? `${complaint.evidence} photo(s)` : 'Evidence attached';
 
   return (
     <div className="min-h-screen bg-[#F0F4F8]">

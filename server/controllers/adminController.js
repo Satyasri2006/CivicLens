@@ -17,22 +17,17 @@ export const getAdminComplaints = async (req, res) => {
 
 export const getAdminStats = async (req, res) => {
   try {
-    let total = 1248;
-    let critical = 42;
-    let pending = 318;
-    let resolved = 888;
-
+    let all = [];
     try {
-      const all = await Complaint.find();
-      if (all.length > 0) {
-        total = all.length;
-        critical = all.filter((c) => c.priority === 'URGENT' || c.priority === 'HIGH').length;
-        pending = all.filter((c) => c.status === 'submitted' || c.status === 'under_review').length;
-        resolved = all.filter((c) => c.status === 'resolved').length;
-      }
+      all = await Complaint.find();
     } catch (dbErr) {
-      // Keep defaults
+      all = [];
     }
+
+    const total = all.length;
+    const critical = all.filter((c) => c.priority === 'URGENT' || c.priority === 'HIGH').length;
+    const pending = all.filter((c) => c.status === 'submitted' || c.status === 'under_review').length;
+    const resolved = all.filter((c) => c.status === 'resolved').length;
 
     return res.json({
       total,
@@ -40,10 +35,10 @@ export const getAdminStats = async (req, res) => {
       pending,
       resolved,
       trends: {
-        total: '+12%',
-        critical: '-8%',
-        pending: '+5%',
-        resolved: '+18%',
+        total: total > 0 ? `+${total}` : '0',
+        critical: critical > 0 ? `${critical}` : '0',
+        pending: pending > 0 ? `${pending}` : '0',
+        resolved: resolved > 0 ? `${resolved}` : '0',
       },
     });
   } catch (error) {

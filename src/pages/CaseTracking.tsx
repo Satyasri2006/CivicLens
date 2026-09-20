@@ -21,30 +21,27 @@ export default function CaseTracking({
   user,
   onOpenAuth,
   onLogout,
-  complaintId = 'CL-10482',
+  complaintId,
   complaints = [],
 }: Props) {
-  const [complaint, setComplaint] = useState<Complaint>(
-    () => {
+  const [complaint, setComplaint] = useState<Complaint | null>(() => {
+    if (complaintId) {
       const found = complaints.find((c) => c.id === complaintId || (c as any).caseId === complaintId);
-      return found ? formatComplaint(found) : complaints[0] ? formatComplaint(complaints[0]) : formatComplaint({
-        caseId: complaintId,
-        issueType: 'Garbage accumulation',
-        category: 'Sanitation',
-        department: 'Municipal Sanitation Department',
-        priority: 'HIGH',
-        location: 'Block B, XYZ Road',
-        status: 'Submitted',
-        date: 'Today',
-        description: 'Civic complaint submitted via CivicLens AI.',
-      });
+      if (found) return formatComplaint(found);
     }
-  );
+    if (complaints.length > 0) {
+      return formatComplaint(complaints[0]);
+    }
+    return null;
+  });
+
+  const activeId = complaintId || complaint?.id;
 
   useEffect(() => {
+    if (!activeId) return;
     async function fetchCase() {
       try {
-        const fetched = await api.complaints.getByCaseId(complaintId);
+        const fetched = await api.complaints.getByCaseId(activeId!);
         if (fetched) {
           setComplaint(formatComplaint(fetched));
         }
@@ -53,7 +50,48 @@ export default function CaseTracking({
       }
     }
     fetchCase();
-  }, [complaintId]);
+  }, [activeId]);
+
+  if (!complaint) {
+    return (
+      <div className="min-h-screen bg-[#F0F4F8]">
+        <Navbar
+          navigate={navigate}
+          currentPage="dashboard"
+          user={user}
+          onOpenAuth={onOpenAuth}
+          onLogout={onLogout}
+        />
+        <div className="max-w-xl mx-auto px-4 sm:px-6 py-16 text-center animate-fadeInUp">
+          <div className="bg-white rounded-2xl border border-[#D1DCE8] p-8 shadow-sm">
+            <div className="w-14 h-14 mx-auto rounded-full bg-blue-50 text-[#1B3A6B] flex items-center justify-center mb-4">
+              <svg className="w-7 h-7" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-6 9l2 2 4-4" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-[#0F1C2E] mb-2 font-display">No Case Selected</h2>
+            <p className="text-sm text-[#5A7090] mb-6">
+              You do not have an active complaint selected or no complaints have been reported yet.
+            </p>
+            <div className="flex flex-col sm:flex-row gap-3 justify-center">
+              <button
+                onClick={() => navigate('report')}
+                className="px-5 py-2.5 bg-[#1B3A6B] text-white font-medium rounded-xl hover:bg-[#142E57] transition-colors text-sm shadow-sm"
+              >
+                + Report a Civic Issue
+              </button>
+              <button
+                onClick={() => navigate('complaint-history')}
+                className="px-5 py-2.5 border border-[#D1DCE8] text-[#3A4F6A] font-medium rounded-xl hover:bg-slate-50 transition-colors text-sm"
+              >
+                View Complaint History
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   const timelineEvents = [
     { label: 'Complaint Created', time: `${complaint.date}, 10:32 AM`, done: true, desc: 'Citizen submitted report via CivicLens.' },

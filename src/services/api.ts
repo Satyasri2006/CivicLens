@@ -1,4 +1,3 @@
-import { complaints as mockComplaints } from '../data/mockData';
 import { formatComplaint, type Complaint, type Priority, type Category } from '../types';
 
 // Dynamic API base URL:
@@ -61,21 +60,39 @@ const saveStoredUser = (user: any): void => {
   }
 };
 
-const getStoredComplaints = (): Complaint[] => {
+const getStoredComplaints = (userId?: string): Complaint[] => {
   try {
     const raw = localStorage.getItem(COMPLAINTS_STORAGE_KEY);
     if (!raw) return [];
     const list = JSON.parse(raw);
-    return Array.isArray(list) ? list.map(formatComplaint) : [];
+    if (!Array.isArray(list)) return [];
+    const formatted = list.map(formatComplaint);
+    if (userId) {
+      return formatted.filter((c: any) => c.userId && String(c.userId) === String(userId));
+    }
+    return formatted;
   } catch {
     return [];
   }
 };
 
-const saveStoredComplaint = (complaint: any): void => {
+const saveStoredComplaint = (complaint: any, userId?: string): void => {
   try {
     const list = getStoredComplaints();
-    const formatted = formatComplaint(complaint);
+    const formatted: any = formatComplaint(complaint);
+    if (userId) {
+      formatted.userId = userId;
+    } else if (complaint.userId) {
+      formatted.userId = complaint.userId;
+    } else {
+      const activeRaw = localStorage.getItem(ACTIVE_USER_KEY);
+      if (activeRaw) {
+        try {
+          const u = JSON.parse(activeRaw);
+          if (u?.id) formatted.userId = u.id;
+        } catch {}
+      }
+    }
     const existingIndex = list.findIndex((c) => c.id === formatted.id);
     if (existingIndex >= 0) {
       list[existingIndex] = formatted;
@@ -375,21 +392,21 @@ export const api = {
           headers: getHeaders(),
         });
         const list = await handleResponse<any[]>(res);
-        if (Array.isArray(list) && list.length > 0) {
-          list.forEach(saveStoredComplaint);
+        if (Array.isArray(list)) {
           return list;
         }
       } catch (err) {
-        // Fallback to local storage + mock complaints
+        // Fallback to local storage
       }
-      const local = getStoredComplaints();
-      const combined = [...local];
-      for (const mock of mockComplaints) {
-        if (!combined.some((c) => c.id === mock.id)) {
-          combined.push(mock);
-        }
+      let activeUserId: string | undefined = undefined;
+      const activeRaw = localStorage.getItem(ACTIVE_USER_KEY);
+      if (activeRaw) {
+        try {
+          const u = JSON.parse(activeRaw);
+          activeUserId = u.id;
+        } catch {}
       }
-      return combined;
+      return getStoredComplaints(activeUserId);
     },
 
     async getByCaseId(caseId: string) {
@@ -401,9 +418,7 @@ export const api = {
       } catch (err) {
         const local = getStoredComplaints();
         const found = local.find((c) => c.id === caseId || (c as any).caseId === caseId);
-        if (found) return found;
-        const mock = mockComplaints.find((c) => c.id === caseId);
-        return mock || null;
+        return found || null;
       }
     },
 
@@ -437,21 +452,13 @@ export const api = {
           headers: getHeaders(),
         });
         const list = await handleResponse<any[]>(res);
-        if (Array.isArray(list) && list.length > 0) {
-          list.forEach(saveStoredComplaint);
+        if (Array.isArray(list)) {
           return list;
         }
       } catch (err) {
-        // Fallback to local storage + mock complaints
+        // Fallback to local storage
       }
-      const local = getStoredComplaints();
-      const combined = [...local];
-      for (const mock of mockComplaints) {
-        if (!combined.some((c) => c.id === mock.id)) {
-          combined.push(mock);
-        }
-      }
-      return combined;
+      return getStoredComplaints();
     },
 
     async getStats() {
@@ -462,20 +469,20 @@ export const api = {
         return await handleResponse<any>(res);
       } catch (err) {
         const local = getStoredComplaints();
-        const total = mockComplaints.length + local.length;
-        const critical = local.filter((c) => c.priority === 'URGENT' || c.priority === 'HIGH').length + 42;
-        const pending = local.filter((c) => c.status === 'Submitted' || c.status === 'Under Review').length + 318;
-        const resolved = local.filter((c) => c.status === 'Resolved').length + 888;
+        const total = local.length;
+        const critical = local.filter((c) => c.priority === 'URGENT' || c.priority === 'HIGH').length;
+        const pending = local.filter((c) => c.status === 'Submitted' || c.status === 'Under Review').length;
+        const resolved = local.filter((c) => c.status === 'Resolved').length;
         return {
           total,
           critical,
           pending,
           resolved,
           trends: {
-            total: '+12%',
-            critical: '-8%',
-            pending: '+5%',
-            resolved: '+18%',
+            total: total > 0 ? `+${total}` : '0',
+            critical: critical > 0 ? `${critical}` : '0',
+            pending: pending > 0 ? `${pending}` : '0',
+            resolved: resolved > 0 ? `${resolved}` : '0',
           },
         };
       }

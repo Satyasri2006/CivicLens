@@ -2,63 +2,8 @@ import { Complaint } from '../models/Complaint.js';
 import { analyzeComplaintWithGemini } from '../services/geminiService.js';
 import { determineDepartment, calculatePriority } from '../utils/routingRules.js';
 
-// In-memory complaint fallback store
-let memoryComplaints = [
-  {
-    _id: 'c_1',
-    caseId: 'CL-10482',
-    userId: 'user_citizen_1',
-    description: 'There has been garbage piling up outside my college for the last five days. The smell is unbearable and residents are suffering.',
-    language: 'English',
-    category: 'Sanitation',
-    issueType: 'Garbage accumulation',
-    severity: 'High',
-    priority: 'HIGH',
-    department: 'Municipal Sanitation Department',
-    duration: '5 days',
-    location: { latitude: 17.3850, longitude: 78.4867, address: 'Block B, XYZ Road' },
-    evidence: ['garbage_photo_1.jpg', 'garbage_area.jpg'],
-    aiAnalysis: {
-      summary: 'Persistent garbage accumulation near college campus causing severe public risk.',
-      safetyRisk: 'Moderate',
-      justification: 'Waste uncollected for 5 days in a public area creates hygiene and health concerns.',
-      requiredEvidence: ['Photo', 'Location'],
-    },
-    generatedComplaint: {
-      subject: 'Urgent Garbage Accumulation Complaint',
-      body: 'Garbage has remained uncollected near Block B on XYZ Road for approximately five days. Immediate action requested from Municipal Sanitation Department.',
-    },
-    status: 'in_progress',
-    createdAt: new Date('2026-09-02T10:32:00Z').toISOString(),
-  },
-  {
-    _id: 'c_2',
-    caseId: 'CL-10471',
-    userId: 'user_citizen_1',
-    description: 'Large pothole causing traffic disruption and vehicle damage near the city center.',
-    language: 'English',
-    category: 'Roads',
-    issueType: 'Pothole on main road',
-    severity: 'High',
-    priority: 'HIGH',
-    department: 'Public Works Department',
-    duration: '3 weeks',
-    location: { latitude: 17.3900, longitude: 78.4890, address: 'Main Street near City Hall' },
-    evidence: ['pothole.jpg'],
-    aiAnalysis: {
-      summary: 'Severe road surface defect causing traffic hazard.',
-      safetyRisk: 'High',
-      justification: 'Deep pothole on high-speed corridor increases collision risks.',
-      requiredEvidence: ['Photo'],
-    },
-    generatedComplaint: {
-      subject: 'Pothole Repair Notice - Main Street',
-      body: 'Hazardous road condition reported on Main Street near City Hall.',
-    },
-    status: 'submitted',
-    createdAt: new Date('2026-09-01T09:15:00Z').toISOString(),
-  },
-];
+// In-memory complaint fallback store (isolated per user)
+let memoryComplaints = [];
 
 export const analyzeComplaint = async (req, res) => {
   try {
@@ -221,7 +166,7 @@ export const getComplaints = async (req, res) => {
       if (req.user.role === 'admin') {
         list = memoryComplaints;
       } else {
-        list = memoryComplaints.filter((c) => String(c.userId) === String(req.user.id) || true);
+        list = memoryComplaints.filter((c) => String(c.userId) === String(req.user.id));
       }
     }
     return res.json(list);

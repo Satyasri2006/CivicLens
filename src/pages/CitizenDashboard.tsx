@@ -79,18 +79,38 @@ export default function CitizenDashboard({
           <div className="lg:col-span-2">
             <div className="flex items-center justify-between mb-4">
               <h2 className="font-display font-semibold text-[#0F1C2E] text-lg">Recent Complaints</h2>
-              <button
-                onClick={() => navigate('complaint-history')}
-                className="text-sm text-[#2563EB] font-medium hover:underline"
-              >
-                View all →
-              </button>
+              {recentComplaints.length > 0 && (
+                <button
+                  onClick={() => navigate('complaint-history')}
+                  className="text-sm text-[#2563EB] font-medium hover:underline"
+                >
+                  View all →
+                </button>
+              )}
             </div>
-            <div className="grid sm:grid-cols-2 gap-3">
-              {recentComplaints.map((c) => (
-                <ComplaintCard key={c.id} complaint={c} navigate={navigate} />
-              ))}
-            </div>
+            {recentComplaints.length === 0 ? (
+              <div className="bg-white rounded-2xl border border-[#D1DCE8] p-10 flex flex-col items-center justify-center text-center">
+                <div className="w-14 h-14 rounded-full bg-[#EBF0F8] flex items-center justify-center text-2xl mb-3">
+                  📋
+                </div>
+                <h3 className="font-display font-bold text-base text-[#0F1C2E] mb-1">No Complaints Reported Yet</h3>
+                <p className="text-xs text-[#5A7090] max-w-sm mb-5 leading-relaxed">
+                  You haven't filed any civic grievances yet. Notice garbage accumulation, potholes, or broken streetlights? Report it now and let CivicLens handle the rest.
+                </p>
+                <button
+                  onClick={() => navigate('report')}
+                  className="bg-[#1B3A6B] text-white font-semibold px-5 py-2.5 rounded-xl hover:bg-[#142E57] transition-colors text-sm shadow-sm"
+                >
+                  + Report Your First Civic Issue
+                </button>
+              </div>
+            ) : (
+              <div className="grid sm:grid-cols-2 gap-3">
+                {recentComplaints.map((c) => (
+                  <ComplaintCard key={c.id} complaint={c} navigate={navigate} />
+                ))}
+              </div>
+            )}
           </div>
 
           {/* Quick actions + activity */}
@@ -100,9 +120,22 @@ export default function CitizenDashboard({
               <div className="space-y-2">
                 {[
                   { label: 'Report an Issue', icon: '📝', action: () => navigate('report'), primary: true },
-                  { label: 'Track Active Case', icon: '🔍', action: () => navigate('case-tracking', { complaintId: recentComplaints[0]?.id || 'CL-10482' }), primary: false },
+                  {
+                    label: 'Track Active Case',
+                    icon: '🔍',
+                    action: () => {
+                      if (recentComplaints.length > 0) {
+                        navigate('case-tracking', { complaintId: recentComplaints[0].id });
+                      } else {
+                        navigate('report');
+                      }
+                    },
+                    primary: false,
+                  },
                   { label: 'Complaint History', icon: '📚', action: () => navigate('complaint-history'), primary: false },
-                  { label: 'Admin Operations', icon: '🏛️', action: () => navigate('admin'), primary: false },
+                  ...(user?.role === 'admin'
+                    ? [{ label: 'Admin Operations', icon: '🏛️', action: () => navigate('admin'), primary: false }]
+                    : []),
                 ].map((action) => (
                   <button
                     key={action.label}
@@ -126,21 +159,26 @@ export default function CitizenDashboard({
             {/* Activity summary */}
             <div className="bg-white rounded-xl border border-[#D1DCE8] p-5">
               <h3 className="font-display font-semibold text-[#0F1C2E] mb-4">Activity This Month</h3>
-              <div className="space-y-3">
-                {[
-                  { label: 'Resolved quickly', desc: `${recentComplaints[0]?.id || 'CL-10482'} in progress`, icon: '✅' },
-                  { label: 'Department assigned', desc: `${recentComplaints[0]?.id || 'CL-10482'} — ${recentComplaints[0]?.department || 'Sanitation'}`, icon: '🏢' },
-                  { label: 'New report filed', desc: `${recentComplaints[1]?.id || 'CL-10471'} — ${recentComplaints[1]?.issue || 'Pothole reported'}`, icon: '📝' },
-                ].map((a, idx) => (
-                  <div key={idx} className="flex items-start gap-2.5 text-xs">
-                    <span className="text-base mt-0.5">{a.icon}</span>
-                    <div>
-                      <p className="font-medium text-[#0F1C2E]">{a.label}</p>
-                      <p className="text-[#5A7090]">{a.desc}</p>
+              {complaints.length === 0 ? (
+                <div className="p-4 text-center">
+                  <p className="text-xs text-[#8BA3BC]">No activity yet this month.</p>
+                  <p className="text-xs text-[#5A7090] mt-1">Submit a report to see live status updates here.</p>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  {complaints.slice(0, 3).map((c) => (
+                    <div key={c.id} className="flex items-start gap-2.5 text-xs">
+                      <span className="text-base mt-0.5">
+                        {c.status === 'Resolved' ? '✅' : c.status === 'In Progress' ? '🏢' : '📝'}
+                      </span>
+                      <div className="min-w-0 flex-1">
+                        <p className="font-medium text-[#0F1C2E] truncate">{c.issue}</p>
+                        <p className="text-[#5A7090]">{c.id} · {c.status} · {c.date}</p>
+                      </div>
                     </div>
-                  </div>
-                ))}
-              </div>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
         </div>

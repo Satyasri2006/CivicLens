@@ -18,53 +18,73 @@ interface Props {
   complaints: Complaint[];
 }
 
-const trendData = [
-  { dept: 'Municipal Sanitation', count: 387, pct: 31 },
-  { dept: 'Public Works', count: 264, pct: 21 },
-  { dept: 'City Electricity Board', count: 189, pct: 15 },
-  { dept: 'Water Supply Board', count: 156, pct: 12.5 },
-  { dept: 'Drainage & Sewage', count: 134, pct: 10.7 },
-  { dept: 'Others', count: 118, pct: 9.8 },
-];
-
 export default function AdminDashboard({
   navigate,
   user,
   onOpenAuth,
   onLogout,
-  complaints: initialComplaints,
+  complaints: initialComplaints = [],
 }: Props) {
   const [view, setView] = useState<AdminView>('overview');
   const [mapFilter, setMapFilter] = useState<Priority | 'ALL'>('ALL');
   const [exportMessage, setExportMessage] = useState(false);
-  const [complaintsList, setComplaintsList] = useState<Complaint[]>(initialComplaints);
-  const [stats, setStats] = useState(defaultAdminStats);
+  const [complaintsList, setComplaintsList] = useState<Complaint[]>([]);
 
   useEffect(() => {
     async function loadAdminData() {
       try {
-        const fetchedStats = await api.admin.getStats().catch(() => null);
-        if (fetchedStats) {
-          setStats((prev) => ({ ...prev, ...fetchedStats }));
-        }
-
-        const fetchedComplaints = await api.admin.getAllComplaints().catch(() => null);
-        if (fetchedComplaints && fetchedComplaints.length > 0) {
-          const mapped = fetchedComplaints.map(formatComplaint);
-          setComplaintsList(mapped);
-        }
+        const fetchedComplaints = await api.admin.getAllComplaints().catch(() => []);
+        setComplaintsList(fetchedComplaints ? fetchedComplaints.map(formatComplaint) : []);
       } catch (err) {
         console.warn('Admin API load error:', err);
+        setComplaintsList([]);
       }
     }
     loadAdminData();
   }, []);
 
+  // Compute all metrics dynamically from real database complaints
+  const total = complaintsList.length;
+  const critical = complaintsList.filter((c) => c.priority === 'URGENT' || c.priority === 'HIGH').length;
+  const pending = complaintsList.filter((c) => c.status === 'Submitted' || c.status === 'Under Review').length;
+  const resolved = complaintsList.filter((c) => c.status === 'Resolved').length;
+  const inProgress = complaintsList.filter((c) => c.status === 'In Progress').length;
+  const underReview = complaintsList.filter((c) => c.status === 'Under Review').length;
+  const submitted = complaintsList.filter((c) => c.status === 'Submitted').length;
+
   const statCards = [
-    { label: 'Total Complaints', value: (stats.total || complaintsList.length).toLocaleString(), trend: stats.trends?.total || '+12%', trendUp: true, icon: '📋', color: 'border-l-4 border-l-[#1B3A6B]' },
-    { label: 'Critical', value: stats.critical, trend: stats.trends?.critical || '-8%', trendUp: false, icon: '🚨', color: 'border-l-4 border-l-red-500' },
-    { label: 'Pending', value: stats.pending, trend: stats.trends?.pending || '+5%', trendUp: true, icon: '⏳', color: 'border-l-4 border-l-amber-500' },
-    { label: 'Resolved', value: stats.resolved, trend: stats.trends?.resolved || '+18%', trendUp: true, icon: '✅', color: 'border-l-4 border-l-green-500' },
+    { label: 'Total Complaints', value: total.toLocaleString(), trend: total > 0 ? `+${total}` : '0', trendUp: true, icon: '📋', color: 'border-l-4 border-l-[#1B3A6B]' },
+    { label: 'Critical', value: critical, trend: critical > 0 ? `${critical}` : '0', trendUp: false, icon: '🚨', color: 'border-l-4 border-l-red-500' },
+    { label: 'Pending', value: pending, trend: pending > 0 ? `${pending}` : '0', trendUp: true, icon: '⏳', color: 'border-l-4 border-l-amber-500' },
+    { label: 'Resolved', value: resolved, trend: resolved > 0 ? `${resolved}` : '0', trendUp: true, icon: '✅', color: 'border-l-4 border-l-green-500' },
+  ];
+
+  // Dynamic department breakdown from real complaints
+  const defaultDepts = [
+    'Municipal Sanitation',
+    'Public Works',
+    'City Electricity Board',
+    'Water Supply Board',
+    'Drainage & Sewage',
+  ];
+  const deptCounts: Record<string, number> = {};
+  defaultDepts.forEach((d) => (deptCounts[d] = 0));
+  complaintsList.forEach((c) => {
+    const cleanName = (c.department || 'Other').replace(' Department', '');
+    deptCounts[cleanName] = (deptCounts[cleanName] || 0) + 1;
+  });
+  const dynamicTrendData = Object.entries(deptCounts).map(([dept, count]) => ({
+    dept,
+    count,
+    pct: total > 0 ? Math.round((count / total) * 100) : 0,
+  }));
+
+  // Dynamic status distribution from real complaints
+  const statusDistribution = [
+    { status: 'Resolved' as const, count: resolved, pct: total > 0 ? Math.round((resolved / total) * 100) : 0 },
+    { status: 'In Progress' as const, count: inProgress, pct: total > 0 ? Math.round((inProgress / total) * 100) : 0 },
+    { status: 'Submitted' as const, count: submitted, pct: total > 0 ? Math.round((submitted / total) * 100) : 0 },
+    { status: 'Under Review' as const, count: underReview, pct: total > 0 ? Math.round((underReview / total) * 100) : 0 },
   ];
 
   const handleExportReport = () => {
@@ -101,12 +121,14 @@ export default function AdminDashboard({
             >
               Export Report
             </button>
-            <button
-              onClick={() => navigate('admin-complaint-details', { complaintId: complaintsList[0]?.id || 'CL-10482' })}
-              className="text-xs bg-[#1B3A6B] text-white px-3 py-1.5 rounded-lg hover:bg-[#142E57] font-medium transition-colors"
-            >
-              View Details
-            </button>
+            {complaintsList.length > 0 && (
+              <button
+                onClick={() => navigate('admin-complaint-details', { complaintId: complaintsList[0]?.id })}
+                className="text-xs bg-[#1B3A6B] text-white px-3 py-1.5 rounded-lg hover:bg-[#142E57] font-medium transition-colors"
+              >
+                View Latest Complaint
+              </button>
+            )}
           </div>
         </div>
 
@@ -131,27 +153,35 @@ export default function AdminDashboard({
           {view === 'complaints' ? (
             <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
               <h2 className="font-display font-semibold text-[#0F1C2E] text-lg mb-4">All System Complaints</h2>
-              <div className="divide-y divide-[#F0F4F8]">
-                {complaintsList.map((c) => (
-                  <button
-                    key={c.id}
-                    onClick={() => navigate('admin-complaint-details', { complaintId: c.id })}
-                    className="w-full flex items-center justify-between p-3.5 hover:bg-[#F8FAFC] rounded-xl transition-colors text-left"
-                  >
-                    <div className="flex items-center gap-3">
-                      <span className="font-mono text-xs text-[#2563EB] font-semibold">{c.id}</span>
-                      <div>
-                        <p className="text-sm font-semibold text-[#0F1C2E]">{c.issue}</p>
-                        <p className="text-xs text-[#5A7090]">{c.location} · {c.date}</p>
+              {complaintsList.length === 0 ? (
+                <div className="p-8 text-center">
+                  <span className="text-3xl mb-2 block">📋</span>
+                  <p className="font-medium text-[#0F1C2E] text-sm">No complaints found in the database.</p>
+                  <p className="text-xs text-[#5A7090] mt-1">When citizens report issues, they will appear here for review and assignment.</p>
+                </div>
+              ) : (
+                <div className="divide-y divide-[#F0F4F8]">
+                  {complaintsList.map((c) => (
+                    <button
+                      key={c.id}
+                      onClick={() => navigate('admin-complaint-details', { complaintId: c.id })}
+                      className="w-full flex items-center justify-between p-3.5 hover:bg-[#F8FAFC] rounded-xl transition-colors text-left"
+                    >
+                      <div className="flex items-center gap-3">
+                        <span className="font-mono text-xs text-[#2563EB] font-semibold">{c.id}</span>
+                        <div>
+                          <p className="text-sm font-semibold text-[#0F1C2E]">{c.issue}</p>
+                          <p className="text-xs text-[#5A7090]">{c.location} · {c.date}</p>
+                        </div>
                       </div>
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <PriorityBadge priority={c.priority} />
-                      <StatusBadge status={c.status} />
-                    </div>
-                  </button>
-                ))}
-              </div>
+                      <div className="flex items-center gap-2">
+                        <PriorityBadge priority={c.priority} />
+                        <StatusBadge status={c.status} />
+                      </div>
+                    </button>
+                  ))}
+                </div>
+              )}
             </div>
           ) : view === 'settings' ? (
             <div className="bg-white rounded-2xl border border-[#D1DCE8] p-6 max-w-xl">
@@ -235,21 +265,25 @@ export default function AdminDashboard({
                     </button>
                   </div>
                   <div className="space-y-2.5">
-                    {complaintsList.slice(0, 5).map((c) => (
-                      <button
-                        key={c.id}
-                        onClick={() => navigate('admin-complaint-details', { complaintId: c.id })}
-                        className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#F0F4F8] transition-colors text-left group"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <p className="text-xs font-semibold text-[#0F1C2E] truncate group-hover:text-[#1B3A6B]">{c.issue}</p>
-                          <p className="text-xs text-[#8BA3BC] font-mono">{c.id}</p>
-                        </div>
-                        <div className="shrink-0">
-                          <PriorityBadge priority={c.priority} />
-                        </div>
-                      </button>
-                    ))}
+                    {complaintsList.length === 0 ? (
+                      <p className="text-xs text-[#8BA3BC] text-center py-4">No complaints recorded yet.</p>
+                    ) : (
+                      complaintsList.slice(0, 5).map((c) => (
+                        <button
+                          key={c.id}
+                          onClick={() => navigate('admin-complaint-details', { complaintId: c.id })}
+                          className="w-full flex items-center gap-3 p-2.5 rounded-xl hover:bg-[#F0F4F8] transition-colors text-left group"
+                        >
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs font-semibold text-[#0F1C2E] truncate group-hover:text-[#1B3A6B]">{c.issue}</p>
+                            <p className="text-xs text-[#8BA3BC] font-mono">{c.id}</p>
+                          </div>
+                          <div className="shrink-0">
+                            <PriorityBadge priority={c.priority} />
+                          </div>
+                        </button>
+                      ))
+                    )}
                   </div>
                 </div>
 
@@ -257,7 +291,7 @@ export default function AdminDashboard({
                 <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
                   <h3 className="font-display font-semibold text-[#0F1C2E] text-sm mb-4">By Department</h3>
                   <div className="space-y-3">
-                    {trendData.map((d) => (
+                    {dynamicTrendData.map((d) => (
                       <div key={d.dept}>
                         <div className="flex justify-between text-xs mb-1">
                           <span className="text-[#5A7090] truncate mr-2">{d.dept}</span>
@@ -278,12 +312,7 @@ export default function AdminDashboard({
                 <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
                   <h3 className="font-display font-semibold text-[#0F1C2E] text-sm mb-4">Status Breakdown</h3>
                   <div className="space-y-2">
-                    {[
-                      { status: 'Resolved' as const, count: stats.resolved || 888, pct: 71 },
-                      { status: 'In Progress' as const, count: 234, pct: 19 },
-                      { status: 'Submitted' as const, count: stats.pending || 84, pct: 7 },
-                      { status: 'Under Review' as const, count: 42, pct: 3 },
-                    ].map((s) => (
+                    {statusDistribution.map((s) => (
                       <div key={s.status} className="flex items-center gap-3">
                         <StatusBadge status={s.status} />
                         <div className="flex-1 h-1.5 bg-[#F0F4F8] rounded-full overflow-hidden">

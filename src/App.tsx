@@ -12,7 +12,6 @@ import ComplaintHistory from './pages/ComplaintHistory';
 import AdminDashboard from './pages/AdminDashboard';
 import AdminComplaintDetails from './pages/AdminComplaintDetails';
 import AuthModal from './components/AuthModal';
-import { complaints as initialComplaints } from './data/mockData';
 import { api } from './services/api';
 
 export interface User {
@@ -35,13 +34,13 @@ export interface ReportData {
 
 export default function App() {
   const [page, setPage] = useState<Page>('landing');
-  const [complaintId, setComplaintId] = useState<string>('CL-10482');
+  const [complaintId, setComplaintId] = useState<string>('');
   const [user, setUser] = useState<User | null>(null);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
   const [intendedPage, setIntendedPage] = useState<Page | null>(null);
 
-  // Dynamic complaint management
-  const [complaintList, setComplaintList] = useState<Complaint[]>(initialComplaints);
+  // Dynamic complaint management (strictly isolated per user)
+  const [complaintList, setComplaintList] = useState<Complaint[]>([]);
   const [activeReportData, setActiveReportData] = useState<ReportData | null>(null);
 
   // Restore user session on mount from API
@@ -55,12 +54,13 @@ export default function App() {
             ? api.admin.getAllComplaints()
             : api.complaints.getMyComplaints()
           ).catch(() => []);
-          if (rawList && rawList.length > 0) {
-            setComplaintList(rawList.map(formatComplaint));
-          }
+          setComplaintList(rawList ? rawList.map(formatComplaint) : []);
+        } else {
+          setComplaintList([]);
         }
       } catch (err) {
         console.warn('Session restoration failed:', err);
+        setComplaintList([]);
       }
     }
     restoreSession();
@@ -69,15 +69,18 @@ export default function App() {
   const fetchUserComplaints = async (currentUser?: User | null) => {
     try {
       const activeUser = currentUser !== undefined ? currentUser : user;
-      const rawList = await (activeUser?.role === 'admin'
+      if (!activeUser) {
+        setComplaintList([]);
+        return;
+      }
+      const rawList = await (activeUser.role === 'admin'
         ? api.admin.getAllComplaints()
         : api.complaints.getMyComplaints()
       ).catch(() => []);
-      if (rawList && rawList.length > 0) {
-        setComplaintList(rawList.map(formatComplaint));
-      }
+      setComplaintList(rawList ? rawList.map(formatComplaint) : []);
     } catch (err) {
       console.warn('Error fetching complaints from API:', err);
+      setComplaintList([]);
     }
   };
 
@@ -102,6 +105,8 @@ export default function App() {
   const handleLogout = () => {
     api.auth.logout();
     setUser(null);
+    setComplaintList([]);
+    setComplaintId('');
     setPage('landing');
   };
 
