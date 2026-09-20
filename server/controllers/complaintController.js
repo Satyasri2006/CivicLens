@@ -97,6 +97,13 @@ export const analyzeComplaint = async (req, res) => {
 
 export const createComplaint = async (req, res) => {
   try {
+    // When sent as multipart/form-data, nested objects arrive as JSON strings
+    const safeParse = (val) => {
+      if (!val) return undefined;
+      if (typeof val === 'object') return val;
+      try { return JSON.parse(val); } catch { return val; }
+    };
+
     const {
       description,
       language = 'English',
@@ -106,14 +113,27 @@ export const createComplaint = async (req, res) => {
       priority,
       department,
       duration = 'Recent',
-      location = { address: 'Block B, XYZ Road' },
-      evidence = [],
-      aiAnalysis,
-      generatedComplaint,
     } = req.body;
+
+    const location = safeParse(req.body.location) || { address: 'Block B, XYZ Road' };
+    const aiAnalysis = safeParse(req.body.aiAnalysis);
+    const generatedComplaint = safeParse(req.body.generatedComplaint);
 
     if (!description) {
       return res.status(400).json({ message: 'Description is required.' });
+    }
+
+    // Convert uploaded image files to base64 data URIs for MongoDB storage
+    let evidence = [];
+    if (req.files && req.files.length > 0) {
+      evidence = req.files.map((file) => {
+        const base64 = file.buffer.toString('base64');
+        return `data:${file.mimetype};base64,${base64}`;
+      });
+    } else {
+      // Fallback: use evidence strings from body (backward compat with JSON requests)
+      const bodyEvidence = safeParse(req.body.evidence) || req.body.evidence;
+      evidence = Array.isArray(bodyEvidence) ? bodyEvidence : bodyEvidence ? [String(bodyEvidence)] : [];
     }
 
     const officialDepartment = department || determineDepartment(category, issueType, description);
@@ -138,7 +158,7 @@ export const createComplaint = async (req, res) => {
         department: officialDepartment,
         duration,
         location: typeof location === 'string' ? { address: location } : location,
-        evidence: Array.isArray(evidence) ? evidence : [String(evidence)],
+        evidence,
         aiAnalysis: aiAnalysis || {
           summary: description,
           safetyRisk: 'Moderate',
@@ -165,7 +185,7 @@ export const createComplaint = async (req, res) => {
         department: officialDepartment,
         duration,
         location: typeof location === 'string' ? { address: location } : location,
-        evidence: Array.isArray(evidence) ? evidence : [String(evidence)],
+        evidence,
         aiAnalysis: aiAnalysis || {
           summary: description,
           safetyRisk: 'Moderate',

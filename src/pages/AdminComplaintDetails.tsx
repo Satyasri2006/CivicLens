@@ -1,5 +1,6 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { Page, Status, Priority, Complaint } from '../types';
+import { formatComplaint } from '../types';
 import type { User } from '../App';
 import AdminSidebar from '../components/AdminSidebar';
 import StatusBadge from '../components/StatusBadge';
@@ -28,7 +29,7 @@ export default function AdminComplaintDetails({
   complaints,
   setComplaints,
 }: Props) {
-  const complaint = complaints.find((c) => c.id === complaintId || (c as any).caseId === complaintId) || complaints[0] || {
+  const initialComplaint = complaints.find((c) => c.id === complaintId || (c as any).caseId === complaintId) || complaints[0] || {
     id: complaintId,
     issue: 'Garbage accumulation',
     category: 'Sanitation',
@@ -40,12 +41,31 @@ export default function AdminComplaintDetails({
     description: 'Garbage accumulation near college campus.',
   };
 
+  const [complaint, setComplaint] = useState<Complaint>(() => formatComplaint(initialComplaint));
   const [status, setStatus] = useState<Status>(complaint.status);
   const [department, setDepartment] = useState<string>(complaint.department);
   const [priority, setPriority] = useState<Priority>(complaint.priority);
   const [showStatusDropdown, setShowStatusDropdown] = useState(false);
   const [saved, setSaved] = useState(false);
   const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    async function loadFullDetails() {
+      try {
+        const fetched = await api.complaints.getByCaseId(complaintId);
+        if (fetched) {
+          const formatted = formatComplaint(fetched);
+          setComplaint(formatted);
+          setStatus(formatted.status);
+          setDepartment(formatted.department);
+          setPriority(formatted.priority);
+        }
+      } catch (err) {
+        console.warn('Could not fetch complaint details from API, using prop state:', err);
+      }
+    }
+    loadFullDetails();
+  }, [complaintId]);
 
   const [noteText, setNoteText] = useState('');
   const [activityTimeline, setActivityTimeline] = useState([
@@ -176,6 +196,25 @@ export default function AdminComplaintDetails({
                 "{complaint.description}"
               </p>
             </div>
+
+            {/* Attached Evidence Photos */}
+            {complaint.evidenceFiles && complaint.evidenceFiles.length > 0 && (
+              <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
+                <h2 className="font-display font-semibold text-[#0F1C2E] mb-3">
+                  Attached Photos ({complaint.evidenceFiles.length})
+                </h2>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {complaint.evidenceFiles.map((imgSrc, idx) => (
+                    <img
+                      key={idx}
+                      src={imgSrc}
+                      alt={`Evidence ${idx + 1}`}
+                      className="w-full h-32 object-cover rounded-xl border border-[#D1DCE8]"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* AI Analysis */}
             <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">

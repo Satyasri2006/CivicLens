@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Page, Complaint } from '../types';
+import { formatComplaint } from '../types';
 import type { User } from '../App';
 import Navbar from '../components/Navbar';
 import StatusBadge from '../components/StatusBadge';
@@ -24,16 +25,19 @@ export default function CaseTracking({
   complaints = [],
 }: Props) {
   const [complaint, setComplaint] = useState<Complaint>(
-    () => complaints.find((c) => c.id === complaintId || (c as any).caseId === complaintId) || complaints[0] || {
-      id: complaintId,
-      issue: 'Garbage accumulation',
-      category: 'Sanitation',
-      department: 'Municipal Sanitation Department',
-      priority: 'HIGH',
-      location: 'Block B, XYZ Road',
-      status: 'Submitted',
-      date: 'Today',
-      description: 'Civic complaint submitted via CivicLens AI.',
+    () => {
+      const found = complaints.find((c) => c.id === complaintId || (c as any).caseId === complaintId);
+      return found ? formatComplaint(found) : complaints[0] ? formatComplaint(complaints[0]) : formatComplaint({
+        caseId: complaintId,
+        issueType: 'Garbage accumulation',
+        category: 'Sanitation',
+        department: 'Municipal Sanitation Department',
+        priority: 'HIGH',
+        location: 'Block B, XYZ Road',
+        status: 'Submitted',
+        date: 'Today',
+        description: 'Civic complaint submitted via CivicLens AI.',
+      });
     }
   );
 
@@ -42,22 +46,7 @@ export default function CaseTracking({
       try {
         const fetched = await api.complaints.getByCaseId(complaintId);
         if (fetched) {
-          setComplaint({
-            id: fetched.caseId || fetched._id,
-            issue: fetched.issueType || fetched.description?.substring(0, 30) || 'Civic Issue',
-            category: fetched.category || 'Sanitation',
-            department: fetched.department || 'Municipal Sanitation Department',
-            priority: fetched.priority || 'HIGH',
-            location: typeof fetched.location === 'string' ? fetched.location : fetched.location?.address || 'City Area',
-            status: fetched.status === 'in_progress' ? 'In Progress' : fetched.status === 'under_review' ? 'Under Review' : fetched.status === 'resolved' ? 'Resolved' : 'Submitted',
-            date: fetched.createdAt ? new Date(fetched.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Today',
-            description: fetched.description,
-            aiSummary: fetched.aiAnalysis?.summary || fetched.description,
-            severity: fetched.severity || 'High',
-            duration: fetched.duration || 'Recent',
-            safetyRisk: fetched.aiAnalysis?.safetyRisk || 'Moderate',
-            evidence: fetched.evidence?.length || 1,
-          });
+          setComplaint(formatComplaint(fetched));
         }
       } catch (err) {
         console.warn('Backend fetch for case failed, using local/prop state:', err);
@@ -197,6 +186,25 @@ export default function CaseTracking({
               <h3 className="font-display font-semibold text-[#0F1C2E] text-sm mb-3">Citizen Description</h3>
               <p className="text-xs text-[#5A7090] leading-relaxed">{complaint.description}</p>
             </div>
+
+            {/* Attached Evidence Photos */}
+            {complaint.evidenceFiles && complaint.evidenceFiles.length > 0 && (
+              <div className="bg-white rounded-2xl border border-[#D1DCE8] p-5">
+                <h3 className="font-display font-semibold text-[#0F1C2E] text-sm mb-3">
+                  Attached Evidence ({complaint.evidenceFiles.length})
+                </h3>
+                <div className="grid grid-cols-2 gap-2">
+                  {complaint.evidenceFiles.map((imgSrc, idx) => (
+                    <img
+                      key={idx}
+                      src={imgSrc}
+                      alt={`Evidence photo ${idx + 1}`}
+                      className="w-full h-28 object-cover rounded-xl border border-[#D1DCE8]"
+                    />
+                  ))}
+                </div>
+              </div>
+            )}
 
             {/* Actions */}
             <div className="flex flex-col gap-2">

@@ -226,6 +226,7 @@ export default function AIAnalysisPage({
                   language: reportData?.language || 'English',
                   location: loc,
                   uploadedFiles: reportData?.uploadedFiles || [],
+                  uploadedFileObjects: reportData?.uploadedFileObjects,
                   aiAnalysis: {
                     category,
                     issueType,

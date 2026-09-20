@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useRef } from 'react';
 import type { Page, InputMode } from '../types';
 import type { User, ReportData } from '../App';
 import Navbar from '../components/Navbar';
@@ -12,6 +12,9 @@ interface Props {
 }
 
 const languages = ['English', 'Telugu', 'Hindi', 'Tamil', 'Kannada', 'Malayalam'];
+const MAX_FILES = 5;
+const MAX_FILE_SIZE = 5 * 1024 * 1024; // 5 MB (stored as base64 in MongoDB)
+const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 
 export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Props) {
   const [inputMode, setInputMode] = useState<InputMode>('text');
@@ -19,10 +22,11 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
   const [language, setLanguage] = useState('English');
   const [location, setLocation] = useState('');
   const [locationDetected, setLocationDetected] = useState(false);
-  const [uploadedFiles, setUploadedFiles] = useState<string[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<File[]>([]);
   const [isDragging, setIsDragging] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [errors, setErrors] = useState<{ desc?: string; location?: string }>({});
+  const [errors, setErrors] = useState<{ desc?: string; location?: string; files?: string }>({});
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleDetectLocation = () => {
     setTimeout(() => {
@@ -31,15 +35,40 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
     }, 300);
   };
 
-  const handleFileUpload = () => {
-    if (!uploadedFiles.includes('evidence_photo_1.jpg')) {
-      setUploadedFiles((prev) => [...prev, 'evidence_photo_1.jpg', 'site_area_2.jpg']);
+  const addFiles = (fileList: FileList | File[]) => {
+    const incoming = Array.from(fileList);
+    const valid: File[] = [];
+    for (const file of incoming) {
+      if (!ALLOWED_TYPES.includes(file.type)) {
+        setErrors((p) => ({ ...p, files: 'Only JPEG, PNG, and WebP images are allowed.' }));
+        continue;
+      }
+      if (file.size > MAX_FILE_SIZE) {
+        setErrors((p) => ({ ...p, files: 'Each file must be under 5 MB.' }));
+        continue;
+      }
+      valid.push(file);
     }
+    setSelectedFiles((prev) => {
+      const combined = [...prev, ...valid];
+      if (combined.length > MAX_FILES) {
+        setErrors((p) => ({ ...p, files: `Maximum ${MAX_FILES} files allowed.` }));
+        return combined.slice(0, MAX_FILES);
+      }
+      setErrors((p) => ({ ...p, files: undefined }));
+      return combined;
+    });
   };
 
-  const handleRemoveFile = (fileName: string, e: React.MouseEvent) => {
+  const handleFileInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files) addFiles(e.target.files);
+    e.target.value = ''; // reset so same file can be re-selected
+  };
+
+  const handleRemoveFile = (index: number, e: React.MouseEvent) => {
     e.stopPropagation();
-    setUploadedFiles((prev) => prev.filter((f) => f !== fileName));
+    setSelectedFiles((prev) => prev.filter((_, i) => i !== index));
+    setErrors((p) => ({ ...p, files: undefined }));
   };
 
   const handleSubmit = async () => {
@@ -56,6 +85,7 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
     }
 
     const defaultDesc = description.trim() || 'Civic issue reported via CivicLens AI assistant.';
+    const fileNames = selectedFiles.map((f) => f.name);
     setLoading(true);
 
     try {
@@ -72,7 +102,8 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
           description: defaultDesc,
           language,
           location,
-          uploadedFiles,
+          uploadedFiles: fileNames,
+          uploadedFileObjects: selectedFiles,
           aiAnalysis,
         },
       });
@@ -84,7 +115,8 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
           description: defaultDesc,
           language,
           location,
-          uploadedFiles,
+          uploadedFiles: fileNames,
+          uploadedFileObjects: selectedFiles,
         },
       });
     } finally {
@@ -165,7 +197,7 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
             <div className="flex flex-col items-center py-6 gap-4">
               <div
                 className="w-full border-2 border-dashed border-[#D1DCE8] rounded-xl p-8 flex flex-col items-center gap-3 cursor-pointer hover:border-[#2563EB] transition-colors bg-[#F8FAFC]"
-                onClick={handleFileUpload}
+                onClick={() => fileInputRef.current?.click()}
               >
                 <span className="text-4xl">📷</span>
                 <p className="text-[#5A7090] text-sm text-center">Take a photo or upload from your gallery.<br />CivicLens will detect visible civic hazards.</p>
@@ -264,12 +296,21 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
 
           {/* Photo Upload & Evidence */}
           <div>
-            <label className="block text-sm font-semibold text-[#0F1C2E] mb-2">Upload Evidence <span className="text-[#8BA3BC] font-normal">(optional)</span></label>
+            <label className="block text-sm font-semibold text-[#0F1C2E] mb-2">Upload Evidence <span className="text-[#8BA3BC] font-normal">(optional, max {MAX_FILES})</span></label>
+            {/* Hidden real file input */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              accept="image/jpeg,image/png,image/webp"
+              multiple
+              onChange={handleFileInputChange}
+              className="hidden"
+            />
             <div
               onDragOver={(e) => { e.preventDefault(); setIsDragging(true); }}
               onDragLeave={() => setIsDragging(false)}
-              onDrop={(e) => { e.preventDefault(); setIsDragging(false); handleFileUpload(); }}
-              onClick={handleFileUpload}
+              onDrop={(e) => { e.preventDefault(); setIsDragging(false); if (e.dataTransfer.files) addFiles(e.dataTransfer.files); }}
+              onClick={() => fileInputRef.current?.click()}
               className={`border-2 border-dashed rounded-xl p-6 flex flex-col items-center gap-2 cursor-pointer transition-all ${
                 isDragging ? 'border-[#2563EB] bg-blue-50' : 'border-[#D1DCE8] hover:border-[#2563EB]/50 hover:bg-[#F0F4F8]'
               }`}
@@ -280,23 +321,28 @@ export default function ReportIssue({ navigate, user, onOpenAuth, onLogout }: Pr
               <p className="text-sm text-[#5A7090] text-center">
                 <span className="text-[#2563EB] font-medium">Click to upload</span> or drag and drop
               </p>
-              <p className="text-xs text-[#8BA3BC]">PNG, JPG up to 10MB · Multiple files allowed</p>
+              <p className="text-xs text-[#8BA3BC]">PNG, JPG, WebP up to 5MB · Max {MAX_FILES} files</p>
             </div>
+            {errors.files && <p className="text-xs text-red-600 mt-1">{errors.files}</p>}
 
-            {uploadedFiles.length > 0 && (
-              <div className="flex gap-2 mt-3 flex-wrap">
-                {uploadedFiles.map((f) => (
-                  <div key={f} className="flex items-center gap-2 bg-green-50 border border-green-200 rounded-lg px-3 py-1.5 text-xs text-green-700 font-medium">
-                    <svg className="w-3.5 h-3.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                    <span>{f}</span>
+            {selectedFiles.length > 0 && (
+              <div className="flex gap-3 mt-3 flex-wrap">
+                {selectedFiles.map((file, idx) => (
+                  <div key={`${file.name}-${idx}`} className="relative group">
+                    <img
+                      src={URL.createObjectURL(file)}
+                      alt={file.name}
+                      className="w-20 h-20 object-cover rounded-lg border border-[#D1DCE8]"
+                    />
                     <button
                       type="button"
-                      onClick={(e) => handleRemoveFile(f, e)}
-                      className="ml-1 text-red-500 hover:text-red-700 font-bold p-0.5 rounded"
+                      onClick={(e) => handleRemoveFile(idx, e)}
+                      className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity shadow"
                       title="Remove file"
                     >
                       ✕
                     </button>
+                    <p className="text-[10px] text-[#5A7090] mt-0.5 truncate w-20 text-center">{file.name}</p>
                   </div>
                 ))}
               </div>

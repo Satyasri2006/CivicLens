@@ -98,6 +98,21 @@ export const api = {
       return await handleResponse<any>(res);
     },
 
+    async createWithFiles(formData: FormData) {
+      const token = getToken();
+      const headers: Record<string, string> = {};
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      // Do NOT set Content-Type — browser will set multipart boundary automatically
+      const res = await fetch(`${API_BASE_URL}/complaints`, {
+        method: 'POST',
+        headers,
+        body: formData,
+      });
+      return await handleResponse<any>(res);
+    },
+
     async getMyComplaints() {
       const res = await fetch(`${API_BASE_URL}/complaints`, {
         headers: getHeaders(),

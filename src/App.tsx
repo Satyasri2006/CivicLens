@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Page, Complaint } from './types';
+import { formatComplaint } from './types';
 import LandingPage from './pages/LandingPage';
 import CitizenDashboard from './pages/CitizenDashboard';
 import ReportIssue from './pages/ReportIssue';
@@ -27,6 +28,7 @@ export interface ReportData {
   language: string;
   location: string;
   uploadedFiles: string[];
+  uploadedFileObjects?: File[];
   generatedText?: string;
   aiAnalysis?: any;
 }
@@ -49,9 +51,12 @@ export default function App() {
         const meRes = await api.auth.getMe();
         if (meRes?.user) {
           setUser(meRes.user);
-          const list = await api.complaints.getMyComplaints().catch(() => []);
-          if (list && list.length > 0) {
-            setComplaintList(list);
+          const rawList = await (meRes.user.role === 'admin'
+            ? api.admin.getAllComplaints()
+            : api.complaints.getMyComplaints()
+          ).catch(() => []);
+          if (rawList && rawList.length > 0) {
+            setComplaintList(rawList.map(formatComplaint));
           }
         }
       } catch (err) {
@@ -61,11 +66,15 @@ export default function App() {
     restoreSession();
   }, []);
 
-  const fetchUserComplaints = async () => {
+  const fetchUserComplaints = async (currentUser?: User | null) => {
     try {
-      const list = await api.complaints.getMyComplaints();
-      if (list && list.length > 0) {
-        setComplaintList(list);
+      const activeUser = currentUser !== undefined ? currentUser : user;
+      const rawList = await (activeUser?.role === 'admin'
+        ? api.admin.getAllComplaints()
+        : api.complaints.getMyComplaints()
+      ).catch(() => []);
+      if (rawList && rawList.length > 0) {
+        setComplaintList(rawList.map(formatComplaint));
       }
     } catch (err) {
       console.warn('Error fetching complaints from API:', err);
@@ -99,7 +108,7 @@ export default function App() {
   const handleLoginSuccess = async (loggedInUser: User) => {
     setUser(loggedInUser);
     setIsAuthModalOpen(false);
-    await fetchUserComplaints();
+    await fetchUserComplaints(loggedInUser);
 
     if (intendedPage) {
       setPage(intendedPage);
@@ -112,8 +121,9 @@ export default function App() {
   };
 
   const handleNewComplaintSubmitted = (newComplaint: Complaint) => {
-    setComplaintList((prev) => [newComplaint, ...prev]);
-    setComplaintId(newComplaint.id || (newComplaint as any).caseId);
+    const formatted = formatComplaint(newComplaint);
+    setComplaintList((prev) => [formatted, ...prev]);
+    setComplaintId(formatted.id);
   };
 
   useEffect(() => {

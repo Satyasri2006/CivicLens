@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import type { Page, AdminView, Priority, Complaint } from '../types';
+import { formatComplaint } from '../types';
 import type { User } from '../App';
 import AdminSidebar from '../components/AdminSidebar';
 import MapPanel from '../components/MapPanel';
@@ -49,18 +50,7 @@ export default function AdminDashboard({
 
         const fetchedComplaints = await api.admin.getAllComplaints().catch(() => null);
         if (fetchedComplaints && fetchedComplaints.length > 0) {
-          const mapped = fetchedComplaints.map((c: any) => ({
-            id: c.caseId || c._id,
-            issue: c.issueType || c.description?.substring(0, 35) || 'Civic Issue',
-            category: c.category || 'Sanitation',
-            department: c.department || 'Municipal Sanitation Department',
-            priority: c.priority || 'HIGH',
-            location: typeof c.location === 'string' ? c.location : c.location?.address || 'City Area',
-            status: c.status === 'in_progress' ? 'In Progress' : c.status === 'under_review' ? 'Under Review' : c.status === 'resolved' ? 'Resolved' : 'Submitted',
-            date: c.createdAt ? new Date(c.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : 'Today',
-            description: c.description,
-            severity: c.severity || 'High',
-          }));
+          const mapped = fetchedComplaints.map(formatComplaint);
           setComplaintsList(mapped);
         }
       } catch (err) {

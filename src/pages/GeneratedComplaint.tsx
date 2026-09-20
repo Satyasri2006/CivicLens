@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import type { Page, Complaint } from '../types';
+import { formatComplaint } from '../types';
 import type { User, ReportData } from '../App';
 import Navbar from '../components/Navbar';
 import PriorityBadge from '../components/PriorityBadge';
@@ -61,71 +62,96 @@ export default function GeneratedComplaint({
 
     try {
       const subject = `Urgent Notice: ${issueType} at ${initialLocation}`;
-      const payload = {
-        description: complaintText,
-        language,
-        category,
-        issueType,
-        severity,
-        priority,
-        department,
-        duration: aiAnalysis.duration || 'Recent',
-        location: { address: initialLocation },
-        evidence: reportData?.uploadedFiles || [],
-        aiAnalysis: {
-          summary: aiAnalysis.summary || complaintText,
-          safetyRisk: aiAnalysis.safetyRisk || 'Moderate',
-          justification: aiAnalysis.justification || 'Analyzed by CivicLens AI.',
-          requiredEvidence: aiAnalysis.requiredEvidence || ['Photo', 'Location'],
-        },
-        generatedComplaint: {
-          subject,
-          body: complaintText,
-        },
+      const aiPayload = {
+        summary: aiAnalysis.summary || complaintText,
+        safetyRisk: aiAnalysis.safetyRisk || 'Moderate',
+        justification: aiAnalysis.justification || 'Analyzed by CivicLens AI.',
+        requiredEvidence: aiAnalysis.requiredEvidence || ['Photo', 'Location'],
+      };
+      const genComplaint = {
+        subject,
+        body: complaintText,
       };
 
-      // Create complaint via backend API
-      const savedComplaint = await api.complaints.create(payload);
+      let savedComplaint;
+      const fileObjects = reportData?.uploadedFileObjects || [];
 
-      const formattedComplaint: Complaint = {
-        id: savedComplaint.caseId || savedComplaint.id,
-        issue: issueType,
+      if (fileObjects.length > 0) {
+        // Use FormData for multipart/form-data upload with real image files
+        const formData = new FormData();
+        formData.append('description', complaintText);
+        formData.append('language', language);
+        formData.append('category', category);
+        formData.append('issueType', issueType);
+        formData.append('severity', severity);
+        formData.append('priority', priority);
+        formData.append('department', department);
+        formData.append('duration', aiAnalysis.duration || 'Recent');
+        formData.append('location', JSON.stringify({ address: initialLocation }));
+        formData.append('aiAnalysis', JSON.stringify(aiPayload));
+        formData.append('generatedComplaint', JSON.stringify(genComplaint));
+        for (const file of fileObjects) {
+          formData.append('evidence', file);
+        }
+        savedComplaint = await api.complaints.createWithFiles(formData);
+      } else {
+        // Fallback: JSON request without files
+        const payload = {
+          description: complaintText,
+          language,
+          category,
+          issueType,
+          severity,
+          priority,
+          department,
+          duration: aiAnalysis.duration || 'Recent',
+          location: { address: initialLocation },
+          evidence: reportData?.uploadedFiles || [],
+          aiAnalysis: aiPayload,
+          generatedComplaint: genComplaint,
+        };
+        savedComplaint = await api.complaints.create(payload);
+      }
+
+      const formattedComplaint = formatComplaint({
+        ...savedComplaint,
+        issueType,
         category,
         department,
         priority,
         location: initialLocation,
         status: 'Submitted',
-        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
         description: complaintText,
-        aiSummary: aiAnalysis.summary || complaintText,
-        severity,
-        duration: aiAnalysis.duration || 'Recent',
-        safetyRisk: aiAnalysis.safetyRisk || 'Moderate',
-        evidence: reportData?.uploadedFiles?.length || 1,
-      };
+        aiAnalysis: {
+          summary: aiAnalysis.summary || complaintText,
+          safetyRisk: aiAnalysis.safetyRisk || 'Moderate',
+          duration: aiAnalysis.duration || 'Recent',
+        },
+        evidence: savedComplaint.evidence || (reportData?.uploadedFiles ? reportData.uploadedFiles : []),
+      });
 
       onComplaintSubmitted?.(formattedComplaint);
-      navigate('success', { complaintId: savedComplaint.caseId || formattedComplaint.id });
+      navigate('success', { complaintId: formattedComplaint.id });
     } catch (err: any) {
       // Fallback local creation if backend offline
       const randomNum = Math.floor(10000 + Math.random() * 90000);
       const fallbackId = `CL-${randomNum}`;
-      const fallbackComplaint: Complaint = {
-        id: fallbackId,
-        issue: issueType,
+      const fallbackComplaint = formatComplaint({
+        caseId: fallbackId,
+        issueType,
         category,
         department,
         priority,
         location: initialLocation,
         status: 'Submitted',
-        date: new Date().toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }),
         description: complaintText,
-        aiSummary: complaintText,
-        severity,
-        duration: 'Recent',
-        safetyRisk: 'Moderate',
-        evidence: 1,
-      };
+        aiAnalysis: {
+          summary: complaintText,
+          safetyRisk: 'Moderate',
+          duration: 'Recent',
+        },
+        evidence: reportData?.uploadedFiles || [],
+      });
       onComplaintSubmitted?.(fallbackComplaint);
       navigate('success', { complaintId: fallbackId });
     } finally {
