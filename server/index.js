@@ -35,8 +35,10 @@ app.use((err, req, res, next) => {
   res.status(500).json({ message: 'Internal Server Error', error: err.message });
 });
 
-app.listen(PORT, () => {
-  console.log(`[CivicLens Backend] Server running on http://localhost:${PORT}`);
-});
+if (!process.env.VERCEL) {
+  app.listen(PORT, () => {
+    console.log(`[CivicLens Backend] Server running on http://localhost:${PORT}`);
+  });
+}
 
 export default app;

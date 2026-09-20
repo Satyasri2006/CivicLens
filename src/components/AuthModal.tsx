@@ -49,11 +49,7 @@ export default function AuthModal({
         onLoginSuccess(res.user);
       }
     } catch (err: any) {
-      if (err.message?.includes('Failed to fetch') || err.name === 'TypeError') {
-        setError('Cannot connect to backend server at http://localhost:5000. Please ensure backend is running via "npm run server", or click "Quick Demo Login" below.');
-      } else {
-        setError(err.message || 'Authentication failed. Please check your credentials.');
-      }
+      setError(err.message || 'Authentication failed. Please check your credentials.');
     } finally {
       setLoading(false);
     }
